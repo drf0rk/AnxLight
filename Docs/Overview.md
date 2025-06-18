@@ -10,8 +10,7 @@
     *   **Multi-Platform Support:** A key objective is to ensure AnxLight is adaptable for use across diverse environments, including Google Colab, Kaggle, cloud platforms (e.g., Vast.ai, Lightning AI), and local setups. This requires careful consideration of path management and environment configurations.
 *   **Development Plan:** A comprehensive development strategy, outlining phases, specific tasks, and long-term goals (including multi-platform support and detailed logging) is maintained in `AnxLight_Development_Plan.md`, located in the root of the `drf0rk/AnxLight` repository.
 *   **Architecture (Current Development Phase):**
-    *   **Platform Entry Point (e.g., `notebook/AnxLight_Launcher_v0.0.2.ipynb`):** A versioned, single-cell Colab notebook. It clones/updates the `drf0rk/AnxLight` repository (from `main` branch), installs dependencies, sets environment variables, and uses `runpy` to execute `scripts/main_gradio_app.py`. *Needs update to import `traceback` and target `main` branch consistently.*
-    *   **Gradio UI & Orchestration (`scripts/main_gradio_app.py` - v0.0.7):**
+    *   **Platform Entry Point (e.g., `notebook/AnxLight_Launcher_v0.0.2.ipynb`):** A versioned, single-cell Colab notebook. It clones/updates the `drf0rk/AnxLight` repository (from `main` branch), installs dependencies, sets environment variables, and uses `runpy` to execute `scripts/main_gradio_app.py`. *Needs update to import `traceback` and target `main` branch consistently.*\n    *   **Gradio UI & Orchestration (`scripts/main_gradio_app.py` - v0.0.7):**
         *   Manually updated by User to v0.0.7.
         *   Includes versioning (`APP_VERSION = "AnxLight Gradio App v0.0.7"`) and robust `sys.path` setup (global dummy classes, `MODULES_PATH` prioritized) for reliable internal module imports.
         *   Handles UI, configuration generation (`anxlight_config.json`), and backend script orchestration with improved logging and path handling for subprocesses.
@@ -34,7 +33,7 @@
         3.  Installs `gradio`.
         4.  Sets crucial environment variables and `PYTHONPATH`.
         5.  Executes `scripts/main_gradio_app.py` using `runpy.run_path()`.
-    - **Status:** Pending update to add `import traceback` and set `BRANCH_NAME` to `main`.
+    - **Status:** Updated on 2025-06-18 to import `traceback` and target `BRANCH_NAME="main"`.
 
 - **`AnxLight_Development_Plan.md` (In Repository Root):** (As before)
 
