@@ -1,20 +1,16 @@
 # ~ A1111.py | by ANXETY ~
+# Refactored by SuperAssistant to remove IPython dependencies
 
 from Manager import m_download   # Every Download
 import json_utils as js          # JSON
 
-from IPython.display import clear_output
-from IPython.utils import capture
-from IPython import get_ipython
 from pathlib import Path
 import subprocess
 import asyncio
 import os
 
-
 osENV = os.environ
 CD = os.chdir
-ipySys = get_ipython().system
 
 # Constants
 UI = 'A1111'
@@ -63,7 +59,7 @@ async def download_files(file_list):
         directory = Path(parts[1].strip()) if len(parts) > 1 else WEBUI   # Default Save Path
         filename = parts[2].strip() if len(parts) > 2 else Path(url).name
         tasks.append(_download_file(url, directory, filename))
-    await asyncio.gather(*tasks)
+    await asyncio.gather(tasks)
 
 async def download_configuration():
     ## FILES
@@ -123,17 +119,17 @@ async def download_configuration():
             stderr=subprocess.DEVNULL
         ))
 
-    await asyncio.gather(*tasks)
+    await asyncio.gather(tasks)
 
 def unpack_webui():
     zip_path = HOME / f"{UI}.zip"
     m_download(f"{REPO_URL} {HOME} {UI}.zip")
-    ipySys(f"unzip -q -o {zip_path} -d {WEBUI}")
-    ipySys(f"rm -rf {zip_path}")
+    subprocess.run(f"unzip -q -o {zip_path} -d {WEBUI}", shell=True, check=True)
+    subprocess.run(f"rm -rf {zip_path}", shell=True, check=True)
 
 
 # ======================== MAIN CODE =======================
 if __name__ == '__main__':
-    with capture.capture_output():
-        unpack_webui()
-        asyncio.run(download_configuration())
+    # Removed IPython-specific 'with capture.capture_output():'
+    unpack_webui()
+    asyncio.run(download_configuration())
