@@ -515,7 +515,7 @@ with gr.Blocks(css=".gradio-container {max-width: 90% !important; margin: auto !
     all_launch_inputs = [
         webui_choice_dd, sd_version_rb, inpainting_filter_rg,
         models_cbg, vaes_cbg, controlnets_cbg, loras_cbg,
-        update_webui_chk, update_extensions_chk, check_custom_nodes_deps_chk, detailed_download_val,
+        update_webui_chk, update_extensions_chk, check_custom_nodes_deps_chk, detailed_download_chk,
         commit_hash_tb, civitai_token_tb, huggingface_token_tb, zrok_token_tb, ngrok_token_tb,
         custom_args_tb, theme_accent_dd
     ]
