@@ -1,6 +1,6 @@
 # ~ A1111.py | by ANXETY ~
 # Refactored by SuperAssistant to remove IPython dependencies and fix asyncio.gather call
-# AnxLight A1111 UI Script v1.0.2
+# AnxLight A1111 UI Script v1.0.3
 
 from Manager import m_download   # Every Download
 import json_utils as js          # JSON
@@ -10,7 +10,7 @@ import subprocess
 import asyncio
 import os
 
-A1111_SCRIPT_VERSION = "AnxLight A1111 UI Script v1.0.2"
+A1111_SCRIPT_VERSION = "AnxLight A1111 UI Script v1.0.3"
 
 osENV = os.environ
 CD = os.chdir
@@ -80,6 +80,20 @@ async def download_configuration():
         f"{url_cfg}/gradio-tunneling.py, {VENV}/lib/python3.10/site-packages/gradio_tunneling, main.py"  # Replace py-Script
     ]
     await download_files(configs)
+    
+    # DEBUG: Print content of downloaded config.json
+    try:
+        config_file_path = WEBUI / 'config.json'
+        if config_file_path.exists():
+            print(f"--- DEBUG: Content of downloaded {config_file_path} ---")
+            with open(config_file_path, 'r') as f:
+                print(f.read())
+            print("--- END DEBUG ---")
+        else:
+            print(f"--- DEBUG: {config_file_path} not found after download attempt. ---")
+    except Exception as e:
+        print(f"--- DEBUG: Error reading {config_file_path}: {e} ---")
+
 
     ## REPOS
     extensions_list = [
