@@ -8,8 +8,8 @@ import json
 from pathlib import Path
 import traceback # For detailed error logging
 
-# AnxLight Main App v0.0.7 - 2025-06-19
-APP_VERSION = "AnxLight Gradio App v0.0.7"
+# AnxLight Main App v0.0.8 - 2025-06-19
+APP_VERSION = "AnxLight Gradio App v0.0.8"
 
 # --- Define Dummy classes in global scope ---
 # These are placeholders in case the real modules fail to import.
