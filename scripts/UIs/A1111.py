@@ -1,5 +1,6 @@
 # ~ A1111.py | by ANXETY ~
 # Refactored by SuperAssistant to remove IPython dependencies
+# AnxLight A1111 UI Script v1.0.1
 
 from Manager import m_download   # Every Download
 import json_utils as js          # JSON
@@ -8,6 +9,8 @@ from pathlib import Path
 import subprocess
 import asyncio
 import os
+
+A1111_SCRIPT_VERSION = "AnxLight A1111 UI Script v1.0.1"
 
 osENV = os.environ
 CD = os.chdir
@@ -130,6 +133,7 @@ def unpack_webui():
 
 # ======================== MAIN CODE =======================
 if __name__ == '__main__':
+    print(f"--- Running {A1111_SCRIPT_VERSION} ---")
     # Removed IPython-specific 'with capture.capture_output():'
     unpack_webui()
     asyncio.run(download_configuration())
