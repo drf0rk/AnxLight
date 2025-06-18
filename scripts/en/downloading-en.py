@@ -42,20 +42,20 @@ def run_python_script(script_path_str, script_cwd=None):
     try:
         result = subprocess.run([sys.executable, script_path_str], check=True, 
                                 capture_output=True, text=True, env=os.environ.copy(), cwd=script_cwd)
-        if result.stdout.strip(): print(f"[PyScript STDOUT - {os.path.basename(script_path_str)}]:\n{result.stdout.strip()}")
-        if result.stderr.strip(): print(f"[PyScript STDERR - {os.path.basename(script_path_str)}]:\n{result.stderr.strip()}")
+        if result.stdout.strip(): print(f"[PyScript STDOUT - {os.path.basename(script_path_str)}]:\\n{result.stdout.strip()}")
+        if result.stderr.strip(): print(f"[PyScript STDERR - {os.path.basename(script_path_str)}]:\\n{result.stderr.strip()}")
         return result
     except subprocess.CalledProcessError as e:
         print(f"[PyScript Error] Script '{script_path_str}' failed with rc {e.returncode}")
-        if e.stdout and e.stdout.strip(): print(f"[PyScript STDOUT on Error]:\n{e.stdout.strip()}")
-        if e.stderr and e.stderr.strip(): print(f"[PyScript STDERR on Error]:\n{e.stderr.strip()}")
+        if e.stdout and e.stdout.strip(): print(f"[PyScript STDOUT on Error]:\\n{e.stdout.strip()}")
+        if e.stderr and e.stderr.strip(): print(f"[PyScript STDERR on Error]:\\n{e.stderr.strip()}")
         raise 
     except Exception as e_gen:
         print(f"[PyScript Exception] Running '{script_path_str}': {e_gen}")
         raise 
 
 def clear_output_placeholder():
-    print("\n--- [Output Cleared (Placeholder)] ---\n")
+    print("\\n--- [Output Cleared (Placeholder)] ---\\n")
 # --- End AnxLight Helpers ---
 
 try:
@@ -353,11 +353,11 @@ if UI == 'ComfyUI':
     # ... (simplified ComfyUI ADetailer sorting logic) ...
     print(f"Placeholder for ComfyUI ADetailer model sorting if {str(adetailer_dir_path)} exists.")
 
-download_result_script_path = SCRIPTS / 'download-result.py'
-if download_result_script_path.exists():
-    print(f"Running {download_result_script_path}...")
-    run_python_script(str(download_result_script_path), script_cwd=str(SCRIPTS))
-else:
-    print(f"Warning: {download_result_script_path} not found.")
+# download_result_script_path = SCRIPTS / 'download-result.py'
+# if download_result_script_path.exists():
+#     print(f"Running {download_result_script_path}...")
+#     run_python_script(str(download_result_script_path), script_cwd=str(SCRIPTS))
+# else:
+#     print(f"Warning: {download_result_script_path} not found.")
 
-print(f"\n--- {os.path.basename(__file__)} finished its tasks ---")
+print(f"\\n--- {os.path.basename(__file__)} finished its tasks ---")
