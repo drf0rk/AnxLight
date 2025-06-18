@@ -1,10 +1,9 @@
 # ~ launch.py | by ANXETY ~
+# Refactored by SuperAssistant to remove IPython dependencies
 
 from TunnelHub import Tunnel    # Tunneling
 import json_utils as js         # JSON
 
-from IPython.display import clear_output
-from IPython import get_ipython
 from datetime import timedelta
 from pathlib import Path
 import nest_asyncio
@@ -24,7 +23,6 @@ import re
 
 osENV = os.environ
 CD = os.chdir
-ipySys = get_ipython().system
 
 # Constants (auto-convert env vars to Path)
 PATHS = {k: Path(v) for k, v in osENV.items() if k.endswith('_path')}   # k -> key; v -> value
@@ -51,14 +49,14 @@ if PKG not in osENV['PYTHONPATH']:
     osENV['PYTHONPATH'] = PKG + ':' + osENV['PYTHONPATH']
 
 
-# Text Colors (\033)
+# Text Colors (\\033)
 class COLORS:
-    R  =  "\033[31m"     # Red
-    G  =  "\033[32m"     # Green
-    Y  =  "\033[33m"     # Yellow
-    B  =  "\033[34m"     # Blue
-    lB =  "\033[36m"     # lightBlue
-    X  =  "\033[0m"      # Reset
+    R  =  "\\033[31m"     # Red
+    G  =  "\\033[32m"     # Green
+    Y  =  "\\033[33m"     # Yellow
+    B  =  "\\033[34m"     # Blue
+    lB =  "\\033[36m"     # lightBlue
+    X  =  "\\033[0m"      # Reset
 
 COL = COLORS
 
@@ -213,7 +211,7 @@ class TunnelManager:
             if pattern_found:
                 return True, None
 
-            error_msg = '\n'.join(output[-3:]) or 'No output received'
+            error_msg = '\\n'.join(output[-3:]) or 'No output received'
             return False, f"{error_msg[:300]}..."
 
         except Exception as e:
@@ -224,23 +222,23 @@ class TunnelManager:
         services = [
             ('Gradio', {
                 'command': f"gradio-tun {self.tunnel_port}",
-                'pattern': re.compile(r'[\w-]+\.gradio\.live')
+                'pattern': re.compile(r'[\\w-]+\\.gradio\\.live')
             }),
             ('Serveo', {
                 'command': f"ssh -o StrictHostKeyChecking=no -R 80:localhost:{self.tunnel_port} serveo.net",
-                'pattern': re.compile(r'[\w-]+\.serveo\.net')
+                'pattern': re.compile(r'[\\w-]+\\.serveo\\.net')
             }),
             ('Pinggy', {
                 'command': f"ssh -o StrictHostKeyChecking=no -p 80 -R0:localhost:{self.tunnel_port} a.pinggy.io",
-                'pattern': re.compile(r'[\w-]+\.a\.free\.pinggy\.link')
+                'pattern': re.compile(r'[\\w-]+\\.a\\.free\\.pinggy\\.link')
             }),
             ('Cloudflared', {
                 'command': f"cl tunnel --url localhost:{self.tunnel_port}",
-                'pattern': re.compile(r'[\w-]+\.trycloudflare\.com')
+                'pattern': re.compile(r'[\\w-]+\\.trycloudflare\\.com')
             }),
             ('Localtunnel', {
                 'command': f"lt --port {self.tunnel_port}",
-                'pattern': re.compile(r'[\w-]+\.loca\.lt'),
+                'pattern': re.compile(r'[\\w-]+\\.loca\\.lt'),
                 'note': f"Password: {COL.G}{self.public_ip}{COL.X}"
             })
         ]
@@ -254,12 +252,12 @@ class TunnelManager:
                     current_token = json.load(f).get('zrok_token')
 
             if current_token != zrok_token:
-                ipySys('zrok disable &> /dev/null')
-                ipySys(f"zrok enable {zrok_token} &> /dev/null")
+                subprocess.run('zrok disable &> /dev/null', shell=True, check=False)
+                subprocess.run(f"zrok enable {zrok_token} &> /dev/null", shell=True, check=False)
 
             services.append(('Zrok', {
                 'command': f"zrok share public http://localhost:{self.tunnel_port}/ --headless",
-                'pattern': re.compile(r'[\w-]+\.share\.zrok\.io')
+                'pattern': re.compile(r'[\\w-]+\\.share\\.zrok\\.io')
             }))
 
         if ngrok_token:
@@ -271,11 +269,11 @@ class TunnelManager:
                     current_token = yaml.safe_load(f).get('agent', {}).get('authtoken')
 
             if current_token != ngrok_token:
-                ipySys(f"ngrok config add-authtoken {ngrok_token}")
+                subprocess.run(f"ngrok config add-authtoken {ngrok_token}", shell=True, check=False)
 
             services.append(('Ngrok', {
                 'command': f"ngrok http http://localhost:{self.tunnel_port} --log stdout",
-                'pattern': re.compile(r'https://[\w-]+\.ngrok-free\.app')
+                'pattern': re.compile(r'https://[\\w-]+\\.ngrok-free\\.app')
             }))
 
         # Create status printer task
@@ -315,7 +313,7 @@ class TunnelManager:
 if __name__ == '__main__':
     """Main execution flow"""
     args = parse_arguments()
-    print('Please Wait...\n')
+    print('Please Wait...\\n')
 
     osENV['PYTHONWARNINGS'] = 'ignore'
 
@@ -335,15 +333,13 @@ if __name__ == '__main__':
     for tunnel in tunnels:
         tunnelingService.add_tunnel(**tunnel)
 
-    clear_output(wait=True)
-
     # Launch sequence
     _trashing()
     _update_config_paths()
     LAUNCHER = get_launch_command()
 
     # Setup pinggy timer
-    ipySys(f"echo -n {int(time.time())+(3600+20)} > {WEBUI}/static/timer-pinggy.txt")
+    subprocess.run(f"echo -n {int(time.time())+(3600+20)} > {WEBUI}/static/timer-pinggy.txt", shell=True, check=False)
 
     with tunnelingService:
         CD(WEBUI)
@@ -351,16 +347,14 @@ if __name__ == '__main__':
         if UI == 'ComfyUI':
             COMFYUI_SETTINGS_PATH = SCR_PATH / 'ComfyUI.json'
             if check_custom_nodes_deps:
-                ipySys('python3 install-deps.py')
-                clear_output(wait=True)
+                subprocess.run('python3 install-deps.py', shell=True, check=False)
 
             if not js.key_exists(COMFYUI_SETTINGS_PATH, 'install_req', True):
                 print('Installing ComfyUI dependencies...')
                 subprocess.run(['pip', 'install', '-r', 'requirements.txt'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 js.save(COMFYUI_SETTINGS_PATH, 'install_req', True)
-                clear_output(wait=True)
 
-        print(f"{COL.B}>> Total Tunnels:{COL.X} {total} | {COL.G}Success:{COL.X} {success} | {COL.R}Errors:{COL.X} {errors}\n")
+        print(f"{COL.B}>> Total Tunnels:{COL.X} {total} | {COL.G}Success:{COL.X} {success} | {COL.R}Errors:{COL.X} {errors}\\n")
 
         # Display error details if any
         if args.log and errors > 0:
@@ -372,13 +366,15 @@ if __name__ == '__main__':
         print(f"🔧 WebUI: {COL.B}{UI}{COL.X}")
 
         try:
-            ipySys(LAUNCHER)
+            subprocess.run(LAUNCHER, shell=True, check=True)
         except KeyboardInterrupt:
             pass
+        except subprocess.CalledProcessError as e:
+            print(f"Launch command failed: {e}")
 
     # Post-execution cleanup
     if zrok_token:
-        ipySys('zrok disable &> /dev/null')
+        subprocess.run('zrok disable &> /dev/null', shell=True, check=False)
         print('/n🔐 Zrok tunnel disabled :3')
 
     # Display session duration
@@ -386,6 +382,6 @@ if __name__ == '__main__':
         with open(f"{WEBUI}/static/timer.txt") as f:
             timer = float(f.read())
             duration = timedelta(seconds=time.time() - timer)
-            print(f"\n⌚️ Session duration: {COL.Y}{str(duration).split('.')[0]}{COL.X}")
+            print(f"\\n⌚️ Session duration: {COL.Y}{str(duration).split('.')[0]}{COL.X}")
     except FileNotFoundError:
         pass
