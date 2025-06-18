@@ -27,23 +27,23 @@ ListHandlersOrBool = Union[List[logging.Handler], bool]
 
 class ColoredFormatter(logging.Formatter):
     COLORS = {
-        logging.DEBUG: '\033[36m',        # Cyan
-        logging.INFO: '\033[32m',         # Green
-        logging.WARNING: '\033[33m',      # Yellow
-        logging.ERROR: '\033[31m',        # Red
-        logging.CRITICAL: '\033[31;1m',   # Bold Red
+        logging.DEBUG: '\\033[36m',        # Cyan
+        logging.INFO: '\\033[32m',         # Green
+        logging.WARNING: '\\033[33m',      # Yellow
+        logging.ERROR: '\\033[31m',        # Red
+        logging.CRITICAL: '\\033[31;1m',   # Bold Red
     }
 
     def format(self, record):
-        color = self.COLORS.get(record.levelno, '\033[0m')
+        color = self.COLORS.get(record.levelno, '\\033[0m')
         message = super().format(record)
-        return f"\n{color}[{record.name}]:\033[0m {message}"
+        return f"\\n{color}[{record.name}]:\\033[0m {message}"
 
 
 class FileFormatter(logging.Formatter):
     @staticmethod
     def strip_ansi_codes(text: str) -> str:
-        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+        ansi_escape = re.compile(r'\\x1B(?:[@-Z\\\\-_]|\\[[0-?]*[ -/]*[@-~])')
         return ansi_escape.sub('', text)
 
     def format(self, record):
@@ -192,7 +192,7 @@ class Tunnel:
             while not self.printed.is_set():
                 time.sleep(1)
         except KeyboardInterrupt:
-            self.logger.warning('\033[33m⚠️  Keyboard Interrupt detected, stopping tunnel\033[0m')
+            self.logger.warning('\\033[33m⚠️  Keyboard Interrupt detected, stopping tunnel\\033[0m')
             self.stop()
 
     def stop(self) -> None:
@@ -200,7 +200,7 @@ class Tunnel:
         if not self._is_running:
             raise RuntimeError('Tunnel is not running')
 
-        self.logger.info(f"💣 \033[32mTunnels:\033[0m \033[34m{self.get_tunnel_names()}\033[0m -> \033[31mKilled.\033[0m")
+        self.logger.info(f"💣 \\033[32mTunnels:\\033[0m \\033[34m{self.get_tunnel_names()}\\033[0m -> \\033[31mKilled.\\033[0m")
         self.stop_event.set()
         self.terminate_processes()
         self.join_threads()
@@ -411,14 +411,14 @@ class Tunnel:
             tunnel_name_width = max(len(name) for _, _, name in self.urls) if self.urls else 6
 
             # Print the header
-            print('\n\033[32m+' + '=' * (width - 2) + '+\033[0m\n')
+            print('\\n\\033[32m+' + '=' * (width - 2) + '+\\033[0m\\n')
 
             # Print each URL
             for url, note, name in self.urls:
-                print(f"\033[32m 🔗 Tunnel \033[0m{name:<{tunnel_name_width}}  \033[32mURL: \033[0m{url} {note or ''}")
+                print(f"\\033[32m 🔗 Tunnel \\033[0m{name:<{tunnel_name_width}}  \\033[32mURL: \\033[0m{url} {note or ''}")
 
             # Print the footer
-            print('\n\033[32m+' + '=' * (width - 2) + '+\033[0m\n')
+            print('\\n\\033[32m+' + '=' * (width - 2) + '+\\033[0m\\n')
 
             if self.callback:
                 self.invoke_callback(self.callback, self.urls)
