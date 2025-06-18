@@ -1,6 +1,6 @@
 # ~ A1111.py | by ANXETY ~
-# Refactored by SuperAssistant to remove IPython dependencies
-# AnxLight A1111 UI Script v1.0.1
+# Refactored by SuperAssistant to remove IPython dependencies and fix asyncio.gather call
+# AnxLight A1111 UI Script v1.0.2
 
 from Manager import m_download   # Every Download
 import json_utils as js          # JSON
@@ -10,7 +10,7 @@ import subprocess
 import asyncio
 import os
 
-A1111_SCRIPT_VERSION = "AnxLight A1111 UI Script v1.0.1"
+A1111_SCRIPT_VERSION = "AnxLight A1111 UI Script v1.0.2"
 
 osENV = os.environ
 CD = os.chdir
@@ -62,7 +62,7 @@ async def download_files(file_list):
         directory = Path(parts[1].strip()) if len(parts) > 1 else WEBUI   # Default Save Path
         filename = parts[2].strip() if len(parts) > 2 else Path(url).name
         tasks.append(_download_file(url, directory, filename))
-    await asyncio.gather(tasks)
+    await asyncio.gather(*tasks)
 
 async def download_configuration():
     ## FILES
@@ -122,7 +122,7 @@ async def download_configuration():
             stderr=subprocess.DEVNULL
         ))
 
-    await asyncio.gather(tasks)
+    await asyncio.gather(*tasks)
 
 def unpack_webui():
     zip_path = HOME / f"{UI}.zip"
