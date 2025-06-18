@@ -59,8 +59,11 @@ Orchestration: Sequential script execution in Colab cells (Theirs) vs. a central
 Configuration Management: Both use anxlight_config.json (or imply it for \"Mine\" via save_and_launch_generator), but the exact structure and content might differ. \"Theirs\" has a well-defined structure for anxlight_config.json used by downloading-en.py and launch.py.
 Download Utilities: Manager.py (Theirs) vs. huggingface-hub (Mine). Manager.py might be more generic, while huggingface-hub is specialized.
 Log Handling: \"Theirs\" implicitly logs to Colab output. \"Mine\" streams to Gradio.
-The goal is to leverage the robust backend of \"Theirs\" (tunneling, WebUI-specific setup, path management) with the improved UX and orchestration of \"Mine\" (Gradio UI, log streaming, runpy).
+The goal is to leverage the robust backend of \"Theirs\" (tunneling, WebUI-specific setup, path management) with the improved UX and orchestration of \"Mine\" (Gradio UI, log streaming, runpy). The ultimate aim is to create a versatile tool adaptable across various platforms including Colab, Kaggle, cloud providers, and local setups.
+
 Phase 2: Plan for Gradio UI Integration into anxety-solo/sdAIgen
+This document outlines the initial strategic plan for this phase. For a continuously updated, detailed roadmap including subsequent phases and specific tasks, please refer to `AnxLight_Development_Plan.md` located in the root of this repository.
+
 This plan aims to integrate your Gradio-based UI and some of its operational improvements into the anxety-solo/sdAIgen project, with minimal direct changes to the original anxety-solo/sdAIgen Python scripts.
 Core Principle: The Gradio application will become the primary user interaction point for configuration. It will then prepare the anxlight_config.json file in the format expected by anxety-solo/sdAIgen's existing scripts (downloading-en.py, launch.py) and trigger them.
 Proposed File Structure & Changes (Conceptual):
