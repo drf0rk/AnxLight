@@ -1,5 +1,5 @@
 # ~ launch.py | by ANXETY ~
-# Refactored by SuperAssistant to remove IPython dependencies
+# Refactored by SuperAssistant to remove IPython dependencies and fix tunnel logic
 
 from TunnelHub import Tunnel    # Tunneling
 import json_utils as js         # JSON
@@ -233,8 +233,8 @@ class TunnelManager:
                 'pattern': re.compile(r'[\\w-]+\\.a\\.free\\.pinggy\\.link')
             }),
             ('Cloudflared', {
-                'command': f"cl tunnel --url localhost:{self.tunnel_port}",
-                'pattern': re.compile(r'[\\w-]+\\.trycloudflare\\.com')
+                'command': f"cloudflared tunnel --url http://localhost:{self.tunnel_port}",
+                'pattern': re.compile(r'https://[\\w-]+\\.trycloudflare\\.com')
             }),
             ('Localtunnel', {
                 'command': f"lt --port {self.tunnel_port}",
