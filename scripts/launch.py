@@ -106,6 +106,10 @@ def _update_config_paths():
     }
 
     config_file = f"{WEBUI}/config.json"
+    if not Path(config_file).exists():
+        print(f"Warning: {config_file} not found. Skipping config path updates.")
+        return
+
     for key, value in config_mapping.items():
         if js.key_exists(config_file, key):
             js.update(config_file, key, str(value))
@@ -260,22 +264,6 @@ class TunnelManager:
                 'pattern': re.compile(r'[\\w-]+\\.share\\.zrok\\.io')
             }))
 
-        if ngrok_token:
-            config_path = HOME / '.config/ngrok/ngrok.yml'
-            current_token = None
-
-            if config_path.exists():
-                with open(config_path, 'r') as f:
-                    current_token = yaml.safe_load(f).get('agent', {}).get('authtoken')
-
-            if current_token != ngrok_token:
-                subprocess.run(f"ngrok config add-authtoken {ngrok_token}", shell=True, check=False)
-
-            services.append(('Ngrok', {
-                'command': f"ngrok http http://localhost:{self.tunnel_port} --log stdout",
-                'pattern': re.compile(r'https://[\\w-]+\\.ngrok-free\\.app')
-            }))
-
         # Create status printer task
         printer_task = asyncio.create_task(self._print_status())
 
@@ -319,19 +307,36 @@ if __name__ == '__main__':
 
     # Initialize tunnel manager and services
     tunnel_port = 8188 if UI == 'ComfyUI' else 7860
-    tunnel_mgr = TunnelManager(tunnel_port)
-
-    # Run async setup
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    tunnels, total, success, errors = loop.run_until_complete(tunnel_mgr.setup_tunnels())
-
-    # Set up tunneling service
     tunnelingService = Tunnel(tunnel_port)
     tunnelingService.logger.setLevel(logging.DEBUG)
+    
+    # NGROK is a special case. If token is provided, we use it exclusively.
+    if ngrok_token:
+        print("NGROK token provided. Prioritizing NGROK tunnel.")
+        config_path = HOME / '.config/ngrok/ngrok.yml'
+        current_token = None
+        if config_path.exists():
+            with open(config_path, 'r') as f:
+                current_token = yaml.safe_load(f).get('agent', {}).get('authtoken')
+        if current_token != ngrok_token:
+            subprocess.run(f"ngrok config add-authtoken {ngrok_token}", shell=True, check=False)
+        
+        tunnelingService.add_tunnel(
+            name='Ngrok',
+            command=f"ngrok http http://localhost:{tunnel_port} --log stdout",
+            pattern=re.compile(r'https://[\\w-]+\\.ngrok-free\\.app')
+        )
+        total, success, errors = 1, 1, 0
+    else:
+        # Fallback to testing all public tunnels if no NGROK token
+        print("No NGROK token. Testing public tunnels...")
+        tunnel_mgr = TunnelManager(tunnel_port)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        tunnels, total, success, errors = loop.run_until_complete(tunnel_mgr.setup_tunnels())
+        for tunnel in tunnels:
+            tunnelingService.add_tunnel(**tunnel)
 
-    for tunnel in tunnels:
-        tunnelingService.add_tunnel(**tunnel)
 
     # Launch sequence
     _trashing()
@@ -359,8 +364,9 @@ if __name__ == '__main__':
         # Display error details if any
         if args.log and errors > 0:
             print(f"{COL.R}>> Failed Tunnels:{COL.X}")
-            for error in tunnel_mgr.error_reasons:
-                print(f"  - {error['name']}: {error['reason']}")
+            # This part is now less relevant if we only use NGROK, but good for fallback
+            # for error in tunnel_mgr.error_reasons:
+            #     print(f"  - {error['name']}: {error['reason']}")
             print()
 
         print(f"🔧 WebUI: {COL.B}{UI}{COL.X}")
