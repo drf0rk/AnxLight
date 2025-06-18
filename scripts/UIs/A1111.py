@@ -1,6 +1,6 @@
 # ~ A1111.py | by ANXETY ~
 # Refactored by SuperAssistant to remove IPython dependencies and fix asyncio.gather call
-# AnxLight A1111 UI Script v1.0.3
+# AnxLight A1111 UI Script v1.0.4
 
 from Manager import m_download   # Every Download
 import json_utils as js          # JSON
@@ -9,8 +9,9 @@ from pathlib import Path
 import subprocess
 import asyncio
 import os
+import sys
 
-A1111_SCRIPT_VERSION = "AnxLight A1111 UI Script v1.0.3"
+A1111_SCRIPT_VERSION = "AnxLight A1111 UI Script v1.0.4"
 
 osENV = os.environ
 CD = os.chdir
@@ -140,14 +141,34 @@ async def download_configuration():
 
 def unpack_webui():
     zip_path = HOME / f"{UI}.zip"
+    print(f"--- [A1111.py] Step 1: Downloading WebUI from {REPO_URL} ---")
     m_download(f"{REPO_URL} {HOME} {UI}.zip")
-    subprocess.run(f"unzip -q -o {zip_path} -d {WEBUI}", shell=True, check=True)
-    subprocess.run(f"rm -rf {zip_path}", shell=True, check=True)
+    
+    print(f"--- [A1111.py] Step 2: Unzipping {zip_path} to {WEBUI} ---")
+    try:
+        subprocess.run(f"unzip -q -o {zip_path} -d {WEBUI}", shell=True, check=True, capture_output=True, text=True)
+        print("--- [A1111.py] Unzip successful ---")
+    except subprocess.CalledProcessError as e:
+        print(f"--- [A1111.py] ERROR during unzip ---", file=sys.stderr)
+        print(f"Return Code: {e.returncode}", file=sys.stderr)
+        print(f"STDOUT: {e.stdout}", file=sys.stderr)
+        print(f"STDERR: {e.stderr}", file=sys.stderr)
+        sys.exit(1) # Exit to prevent further execution
+
+    print(f"--- [A1111.py] Step 3: Removing {zip_path} ---")
+    try:
+        subprocess.run(f"rm -rf {zip_path}", shell=True, check=True)
+        print("--- [A1111.py] Zip removal successful ---")
+    except subprocess.CalledProcessError as e:
+        print(f"--- [A1111.py] WARNING during zip removal ---", file=sys.stderr)
+        print(f"Return Code: {e.returncode}", file=sys.stderr)
+        print(f"STDERR: {e.stderr}", file=sys.stderr)
 
 
 # ======================== MAIN CODE =======================
 if __name__ == '__main__':
     print(f"--- Running {A1111_SCRIPT_VERSION} ---")
-    # Removed IPython-specific 'with capture.capture_output():'
     unpack_webui()
+    print("--- [A1111.py] Unpack finished, proceeding to download configuration ---")
     asyncio.run(download_configuration())
+    print("--- [A1111.py] Script finished ---")
