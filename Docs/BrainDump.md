@@ -79,6 +79,8 @@
 (As previously listed)
 
 ## 5. Known Issues / Current Workarounds
+*   **[RESOLVED]** **Issue:** The `notebook/AnxLight_Launcher_v0.0.2.ipynb` was non-functional because its raw JSON source was formatted as a single line starting with a `#`, effectively commenting out the entire code cell.
+    *   **Resolution (SCIE #6):** The notebook file was updated with corrected JSON formatting. The `source` is now an array of strings (one per line), allowing the code to execute correctly in Colab and other Jupyter environments.
 (As previously listed, with successful SHA mismatch test noted)
 
 ## 6. Immediate Next Steps (Detailed Development Plan)
