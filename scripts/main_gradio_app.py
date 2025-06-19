@@ -8,8 +8,15 @@ import json
 from pathlib import Path
 import traceback # For detailed error logging
 
-# AnxLight Main App v0.0.8 - 2025-06-19
-APP_VERSION = "AnxLight Gradio App v0.0.8"
+# AnxLight Main App v0.0.9
+try:
+    from anxlight_version import MAIN_APP_VERSION, DOWNLOADER_VERSION, LAUNCH_SCRIPT_VERSION
+    APP_VERSION = f"AnxLight Gradio App v{MAIN_APP_VERSION}"
+except ImportError:
+    APP_VERSION = "AnxLight Gradio App v0.0.9 (Version File Not Found)"
+    DOWNLOADER_VERSION = "unknown"
+    LAUNCH_SCRIPT_VERSION = "unknown"
+
 
 # --- Define Dummy classes in global scope ---
 # These are placeholders in case the real modules fail to import.
@@ -153,7 +160,7 @@ def load_keys_from_file_fn(file_obj):
         gr.Error(f"Error loading keys: {e}. Make sure it's a valid JSON file.")
         return gr.update(), gr.update(), gr.update(), gr.update()
 
-def _execute_backend_script(script_path, log_file_name_base, ui_log_prefix, detailed_logging_enabled, log_session_dir, current_log_output_list):
+def _execute_backend_script(script_path, script_version, log_file_name_base, ui_log_prefix, detailed_logging_enabled, log_session_dir, current_log_output_list):
     log_output_list = current_log_output_list 
     full_log_file_path = None
     script_success = False
@@ -163,7 +170,7 @@ def _execute_backend_script(script_path, log_file_name_base, ui_log_prefix, deta
         log_output_list.append(f"Detailed log for this step will be at: {full_log_file_path}\\n")
         yield "".join(log_output_list) 
     
-    log_output_list.append(f"Executing: {sys.executable} {script_path}...\\n")
+    log_output_list.append(f"Executing: {sys.executable} {script_path} (v{script_version})...\\n")
     yield "".join(log_output_list)
     
     process = None
@@ -399,11 +406,11 @@ def launch_anxlight_main_process(
     downloading_script_path = os.path.join(scr_path_env, 'scripts', 'en', 'downloading-en.py')
     launch_script_path = os.path.join(scr_path_env, 'scripts', 'launch.py')
 
-    log_output_list.append(f"Attempting to run downloading script: {downloading_script_path}\\n")
+    log_output_list.append(f"Attempting to run downloading script (v{DOWNLOADER_VERSION}): {downloading_script_path}\\n")
     yield "".join(log_output_list)
     
     download_success = False
-    for exec_status_or_log_chunk in _execute_backend_script(downloading_script_path, "downloading.log", "[Downloader]", detailed_download_val, log_session_dir, log_output_list):
+    for exec_status_or_log_chunk in _execute_backend_script(downloading_script_path, DOWNLOADER_VERSION, "downloading.log", "[Downloader]", detailed_download_val, log_session_dir, log_output_list):
         if exec_status_or_log_chunk == "SCRIPT_EXECUTION_SUCCESS":
             download_success = True
         elif exec_status_or_log_chunk == "SCRIPT_EXECUTION_FAILURE":
@@ -412,11 +419,11 @@ def launch_anxlight_main_process(
             yield exec_status_or_log_chunk 
     
     if download_success:
-        log_output_list.append(f"\\nDownload script finished. Attempting to run launch script: {launch_script_path}\\n")
+        log_output_list.append(f"\\nDownload script finished. Attempting to run launch script (v{LAUNCH_SCRIPT_VERSION}): {launch_script_path}\\n")
         yield "".join(log_output_list) 
         
         launch_success = False
-        for exec_status_or_log_chunk_launch in _execute_backend_script(launch_script_path, "launch.log", "[Launcher]", detailed_download_val, log_session_dir, log_output_list):
+        for exec_status_or_log_chunk_launch in _execute_backend_script(launch_script_path, LAUNCH_SCRIPT_VERSION, "launch.log", "[Launcher]", detailed_download_val, log_session_dir, log_output_list):
             if exec_status_or_log_chunk_launch == "SCRIPT_EXECUTION_SUCCESS":
                 launch_success = True
             elif exec_status_or_log_chunk_launch == "SCRIPT_EXECUTION_FAILURE":
