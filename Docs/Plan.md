@@ -66,19 +66,26 @@ This document outlines the initial strategic plan for this phase. For a continuo
 
 This plan aims to integrate your Gradio-based UI and some of its operational improvements into the anxety-solo/sdAIgen project, with minimal direct changes to the original anxety-solo/sdAIgen Python scripts.
 Core Principle: The Gradio application will become the primary user interaction point for configuration. It will then prepare the anxlight_config.json file in the format expected by anxety-solo/sdAIgen's existing scripts (downloading-en.py, launch.py) and trigger them.
+
 Proposed File Structure & Changes (Conceptual):
 Base: anxety-solo/sdAIgen repository structure.
 New/Modified Key Files for Integration:
 notebook/AnxLight_Launcher_v0.0.2.ipynb (New, or modified from original): The Colab notebook that launches the Gradio UI.
 scripts/main_gradio_app.py (New): Contains the Gradio application logic, adapted from your Notebook4MCP(4).ipynb and orchestrator.py.
 scripts/data/ (New or consolidated): Directory to hold model/asset data files (_models-data.py, etc.), potentially unified from both projects.
+
+Proposed Notebook Structure (for improved debugging):
+To enhance stability and make debugging easier, the launcher notebook will be restructured into two distinct cells:
+*   **Cell 1: Setup & Dependencies:** This cell will be responsible for all prerequisite operations: cloning/updating the AnxLight repository, and installing all necessary dependencies (`gradio`, `pyngrok`, etc.). This isolates the setup process.
+*   **Cell 2: Launch Application:** This cell will handle the final steps: setting environment variables and executing `scripts/main_gradio_app.py` via `runpy`. This separation allows the user to verify a successful setup before attempting to launch the application.
+
 Detailed Plan:
-Project Setup (Initial Step in Colab Notebook):
+Project Setup (Initial Step in Colab Notebook - Cell 1):
 The new notebook/AnxLight_Launcher_v0.0.2.ipynb notebook will start similarly to the original anxety-solo/sdAIgen notebook.
 Action: Run scripts/setup.py (from anxety-solo/sdAIgen repo). This script downloads all necessary files from the anxety-solo/sdAIgen GitHub repository (including modules/*, scripts/UIs/*, scripts/en/downloading-en.py, scripts/launch.py, etc.) into the Colab environment (e.g., ~/ANXETY/).
-Addition: Ensure gradio and any other specific dependencies for the Gradio UI (like huggingface-hub if its download capability is retained separately) are installed.
-Launch Gradio UI:
-Action: The Colab notebook will then execute the new scripts/main_gradio_app.py script (this script would also be part of the synced files, or fetched alongside setup.py).
+Addition: Ensure gradio, pyngrok, and any other specific dependencies for the Gradio UI are installed in this cell.
+Launch Gradio UI (Second Step in Colab Notebook - Cell 2):
+Action: This cell will execute the new scripts/main_gradio_app.py script.
 scripts/main_gradio_app.py will:
 Define and launch the Gradio interface (ported from your Notebook4MCP(4).ipynb).
 UI Elements:
