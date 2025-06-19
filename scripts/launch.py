@@ -20,6 +20,12 @@ import sys
 import os
 import re
 
+try:
+    from anxlight_version import LAUNCH_SCRIPT_VERSION
+except ImportError:
+    LAUNCH_SCRIPT_VERSION = "1.1.0" # Fallback
+
+print(f"--- AnxLight Launcher Backend v{LAUNCH_SCRIPT_VERSION} ---")
 
 osENV = os.environ
 CD = os.chdir
