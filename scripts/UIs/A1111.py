@@ -1,6 +1,5 @@
 # ~ A1111.py | by ANXETY ~
-# Refactored by SuperAssistant to remove IPython dependencies and fix asyncio.gather call
-# AnxLight A1111 UI Script v1.0.5
+# Refactored by SuperAssistant
 
 from Manager import m_download   # Every Download
 import json_utils as js          # JSON
@@ -11,7 +10,12 @@ import asyncio
 import os
 import sys
 
-A1111_SCRIPT_VERSION = "AnxLight A1111 UI Script v1.0.5"
+try:
+    # Assumes anxlight_version.py is in the parent 'scripts' directory
+    sys.path.append(str(Path(__file__).parent.parent))
+    from anxlight_version import A1111_UI_VERSION
+except ImportError:
+    A1111_UI_VERSION = "1.0.6" # Fallback
 
 osENV = os.environ
 CD = os.chdir
@@ -153,7 +157,7 @@ def unpack_webui():
 
 # ======================== MAIN CODE =======================
 if __name__ == '__main__':
-    print(f"--- Running {A1111_SCRIPT_VERSION} ---")
+    print(f"--- AnxLight A1111 UI Script v{A1111_UI_VERSION} ---")
     unpack_webui()
     print("--- [A1111.py] Unpack finished, proceeding to download configuration ---")
     asyncio.run(download_configuration())
