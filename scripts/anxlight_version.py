@@ -1,13 +1,16 @@
-# AnxLight Component Versions - Single Source of Truth
+# scripts/anxlight_version.py
+# Single source of truth for AnxLight component versions
 
-# Main Application Scripts
-MAIN_APP_VERSION = "0.1.0"
-PRE_FLIGHT_SETUP_VERSION = "1.0.0"
-DOWNLOADER_VERSION = "2.0.0"
-LAUNCH_SCRIPT_VERSION = "2.0.0"
+# Launcher and Core App
+ANXLIGHT_LAUNCHER_NOTEBOOK_VERSION = "0.0.5"  # Based on latest in repo and Plan.md v3
+MAIN_GRADIO_APP_VERSION = "0.0.7"          # Current version from Overview.md, will be updated as it's refactored for v3
+PRE_FLIGHT_SETUP_PY_VERSION = "0.1.0"      # Initial version for this new script
 
-# UI-specific Scripts (Example)
-A1111_UI_VERSION = "1.0.0"
+# Backend Scripts (versions to be confirmed/updated as they are touched)
+# Example: DOWNLOADER_EN_PY_VERSION = "0.0.2" # As per Overview.md
+# Example: LAUNCH_PY_VERSION = "0.0.0" # Inherited, may get specific version if modified
 
-# Launcher Notebook
-LAUNCHER_NOTEBOOK_VERSION = "0.1.0"
+# Add other key script versions here as they are developed or modified.
+# For example, versions for scripts in scripts/UIs/ can be added.
+
+ANXLIGHT_OVERALL_SYSTEM_VERSION = "3.0.0-alpha" # Reflecting the new v3 architecture
