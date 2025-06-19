@@ -1,4 +1,4 @@
-# AnxLight Backend Script (downloading-en.py) v0.0.2 - 2025-06-19 - Fixed settings load call
+# AnxLight Backend Script (downloading-en.py)
 # Original: # ~ download.py | by ANXETY ~
 
 import os
@@ -14,6 +14,15 @@ from pathlib import Path
 from urllib.parse import urlparse
 from datetime import timedelta
 import importlib
+
+# --- Versioning ---
+try:
+    from anxlight_version import DOWNLOADER_VERSION, A1111_UI_VERSION
+except ImportError:
+    DOWNLOADER_VERSION = "1.0.0"
+    A1111_UI_VERSION = "unknown" # Default, will be replaced if UI script has versioning
+
+print(f"--- AnxLight Downloader v{DOWNLOADER_VERSION} ---")
 
 # --- AnxLight: Helper functions to replace IPython specifics ---
 def run_shell_command(command_str, suppress_output=False, check_rc=False, cwd=None):
@@ -37,7 +46,19 @@ def run_shell_command(command_str, suppress_output=False, check_rc=False, cwd=No
         return None
 
 def run_python_script(script_path_str, script_cwd=None):
-    print(f"[PyScript] Executing: {sys.executable} {script_path_str}")
+    # This function will now also try to get the version from the script
+    script_version = "unknown"
+    try:
+        # A bit of a hack to get the version without full import issues
+        with open(script_path_str, 'r') as f:
+            for line in f:
+                if "A1111_SCRIPT_VERSION" in line: # Adapt for other scripts if needed
+                    script_version = line.split('=')[-1].strip().replace('"', '')
+                    break
+    except:
+        pass # Ignore if we can't get the version
+
+    print(f"[PyScript] Executing: {sys.executable} {script_path_str} (Target Version: {script_version})")
     script_cwd = script_cwd or os.getcwd()
     try:
         result = subprocess.run([sys.executable, script_path_str], check=True, 
