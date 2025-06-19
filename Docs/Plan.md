@@ -70,9 +70,10 @@ Core Principle: The Gradio application will become the primary user interaction 
 Proposed File Structure & Changes (Conceptual):
 Base: anxety-solo/sdAIgen repository structure.
 New/Modified Key Files for Integration:
-notebook/AnxLight_Launcher_v0.0.2.ipynb (New, or modified from original): The Colab notebook that launches the Gradio UI.
+notebook/AnxLight_Launcher_v0.0.5.ipynb (New, or modified from original): The Colab notebook that launches the Gradio UI.
 scripts/main_gradio_app.py (New): Contains the Gradio application logic, adapted from your Notebook4MCP(4).ipynb and orchestrator.py.
 scripts/data/ (New or consolidated): Directory to hold model/asset data files (_models-data.py, etc.), potentially unified from both projects.
+scripts/anxlight_version.py (New): A centralized file to manage version numbers for all key components.
 
 Proposed Notebook Structure (for improved debugging):
 To enhance stability and make debugging easier, the launcher notebook will be restructured into two distinct cells:
@@ -81,7 +82,7 @@ To enhance stability and make debugging easier, the launcher notebook will be re
 
 Detailed Plan:
 Project Setup (Initial Step in Colab Notebook - Cell 1):
-The new notebook/AnxLight_Launcher_v0.0.2.ipynb notebook will start similarly to the original anxety-solo/sdAIgen notebook.
+The new notebook/AnxLight_Launcher_v0.0.5.ipynb notebook will start similarly to the original anxety-solo/sdAIgen notebook.
 Action: Run scripts/setup.py (from anxety-solo/sdAIgen repo). This script downloads all necessary files from the anxety-solo/sdAIgen GitHub repository (including modules/*, scripts/UIs/*, scripts/en/downloading-en.py, scripts/launch.py, etc.) into the Colab environment (e.g., ~/ANXETY/).
 Addition: Ensure gradio, pyngrok, and any other specific dependencies for the Gradio UI are installed in this cell.
 Launch Gradio UI (Second Step in Colab Notebook - Cell 2):
