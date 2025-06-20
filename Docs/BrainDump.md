@@ -12,9 +12,10 @@
 *   **Base Repository (Forked From):** `anxety-solo/sdAIgen` (GitHub: `https://github.com/anxety-solo/sdAIgen`)
 *   **Current Development Repository:** `drf0rk/AnxLight` (GitHub: `https://github.com/drf0rk/AnxLight`)
 *   **Primary User Interface:** Gradio
+*   **Language Focus**: Development should prioritize English-language versions of components (e.g., `*-en.py` files) or create new language-agnostic components. Russian-specific files (e.g., `widgets-ru.py`, `downloading-ru.py`) from the original `anxety-solo/sdAIgen` repository should be ignored and are not part of AnxLight's scope.
 
 ### 1.1. Development Roadmap
-*   A detailed, multi-phase development strategy, including long-term goals and specific implementation steps, is maintained in the `AnxLight_Development_Plan.md` file located in the root of the `drf0rk/AnxLight` repository. The user-provided "v3 Architecture Plan" currently guides detailed implementation.
+*   A detailed, multi-phase development strategy, including long-term goals and specific implementation steps, is maintained in the `AnxLight_Development_Plan.md` file located in the root of the `drf0rk/AnxLight` repository. The user-provided \"v3 Architecture Plan\" currently guides detailed implementation.
 
 ## 2. Current Architecture & Key Files (v3 Implementation)
 
@@ -27,7 +28,7 @@
 
 ### 2.2. Versioning Script (`scripts/anxlight_version.py`)
 *   **Purpose:** Centralized source of truth for component versions within the AnxLight project.
-*   **Functionality (v3):** Defines Python constants for versions (e.g., `MAIN_GRADIO_APP_VERSION = "1.0.0"`, `PRE_FLIGHT_SETUP_PY_VERSION = "0.1.0"`, `ANXLIGHT_OVERALL_SYSTEM_VERSION = "3.0.0-alpha"`).
+*   **Functionality (v3):** Defines Python constants for versions (e.g., `MAIN_GRADIO_APP_VERSION = \"1.0.0\"`, `PRE_FLIGHT_SETUP_PY_VERSION = \"0.1.0\"`, `ANXLIGHT_OVERALL_SYSTEM_VERSION = \"3.0.0-alpha\"`).
 *   **Status:** Created and updated for v3 (SHA `96023add48...`).
 
 ### 2.3. Pre-Flight Setup Script (`scripts/pre_flight_setup.py`)
@@ -76,7 +77,7 @@
 *   **Centralized Versioning:** Via `scripts/anxlight_version.py`.
 *   **Consolidated Data Modules:** Per SD version in `scripts/data/`.
 *   **Session-Specific Asset Downloads:** `main_gradio_app.py` only downloads what's needed for the current run.
-*   **Logging Strategy (v3 Plan):** Gradio UI to feature a "Download Session Logs" button. Detailed logs from `main_gradio_app.py` and backend scripts (like `launch.py`) are saved to a session-specific directory if "Detailed Session Log" is enabled.
+*   **Logging Strategy (v3 Plan):** Gradio UI to feature a \"Download Session Logs\" button. Detailed logs from `main_gradio_app.py` and backend scripts (like `launch.py`) are saved to a session-specific directory if \"Detailed Session Log\" is enabled.
 
 ## 4. Crucial Data Points & Information for Development
 
@@ -102,7 +103,7 @@
 *   **Data Module Content:** Accuracy of URLs and filenames in `sd15_data.py` and `sdxl_data.py` is crucial. Consistent use of `inpainting: True` flag for models needed for UI filter. Handling of ControlNet model+YAML pairs in `download_selected_asset` needs to ensure both are fetched if listed.
 
 ## 6. Immediate Next Steps (Post Initial v3 File Setup)
-**Note:** This section is revised for the current v3 context, superseding older "Next Steps" detailed in previous versions of this document. The primary focus is achieving full functionality of the v3 architecture. Refer to `AnxLight_Development_Plan.md` (root) for the broader roadmap.
+**Note:** This section is revised for the current v3 context, superseding older \"Next Steps\" detailed in previous versions of this document. The primary focus is achieving full functionality of the v3 architecture. Refer to `AnxLight_Development_Plan.md` (root) for the broader roadmap.
 
 1.  **Refactor `scripts/UIs/A1111.py`:**
     *   Remove IPython dependencies (`get_ipython().system`, `!`).
@@ -118,12 +119,12 @@
     *   Run Cell 1 (Pre-Flight Setup).
     *   Run Cell 2 (Launch Gradio App).
     *   In Gradio UI: Select WebUI, SD Version, and various assets (models, VAEs, LoRAs, ControlNets).
-    *   Click "Download Assets & Launch WebUI".
+    *   Click \"Download Assets & Launch WebUI\".
     *   Verify:
         *   Correct assets are downloaded by `main_gradio_app.py` (via `Manager.py`) to the correct locations (determined by `webui_utils.py`).
         *   `anxlight_config.json` is generated correctly.
         *   `scripts/launch.py` starts the WebUI and tunnel successfully.
-5.  **Implement "Download Session Logs" Feature:** Add the button to `main_gradio_app.py` and the backend logic to zip and serve logs from the `log_session_dir`.
+5.  **Implement \"Download Session Logs\" Feature:** Add the button to `main_gradio_app.py` and the backend logic to zip and serve logs from the `log_session_dir`.
 6.  **Data Module Accuracy:** Continuously verify and update URLs, filenames, and metadata in `scripts/data/sd15_data.py` and `scripts/data/sdxl_data.py`.
 
 ## 7. Discussed Future Enhancements
