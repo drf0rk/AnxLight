@@ -61,94 +61,71 @@ Download Utilities: Manager.py (Theirs) vs. huggingface-hub (Mine). Manager.py m
 Log Handling: \"Theirs\" implicitly logs to Colab output. \"Mine\" streams to Gradio.
 The goal is to leverage the robust backend of \"Theirs\" (tunneling, WebUI-specific setup, path management) with the improved UX and orchestration of \"Mine\" (Gradio UI, log streaming, runpy). The ultimate aim is to create a versatile tool adaptable across various platforms including Colab, Kaggle, cloud providers, and local setups.
 
-Phase 2: Plan for Gradio UI Integration into anxety-solo/sdAIgen
-This document outlines the initial strategic plan for this phase. For a continuously updated, detailed roadmap including subsequent phases and specific tasks, please refer to `AnxLight_Development_Plan.md` located in the root of this repository.
+Phase 2: Plan for Gradio UI Integration into anxety-solo/sdAIgen (Updated for v3 Architecture)
+**Note:** This document outlines the initial strategic plan. The detailed implementation now follows the "v3 Architecture Plan" (provided by the user during development) and the continuously updated, detailed roadmap in `AnxLight_Development_Plan.md` located in the root of this repository.
 
-This plan aims to integrate your Gradio-based UI and some of its operational improvements into the anxety-solo/sdAIgen project, with minimal direct changes to the original anxety-solo/sdAIgen Python scripts.
-Core Principle: The Gradio application will become the primary user interaction point for configuration. It will then prepare the anxlight_config.json file in the format expected by anxety-solo/sdAIgen's existing scripts (downloading-en.py, launch.py) and trigger them.
+This plan aims to integrate a Gradio-based UI and operational improvements into the `anxety-solo/sdAIgen` project structure.
+Core Principle (v3): A two-cell notebook initiates a pre-flight setup for heavy installations. The second cell launches the Gradio application (`scripts/main_gradio_app.py`), which becomes the primary user interaction point for session configuration. `main_gradio_app.py` handles session-specific asset downloads, prepares `anxlight_config.json`, and then triggers `scripts/launch.py`.
 
-Proposed File Structure & Changes (Conceptual):
-Base: anxety-solo/sdAIgen repository structure.
-New/Modified Key Files for Integration:
-notebook/AnxLight_Launcher_v0.0.5.ipynb (New, or modified from original): The Colab notebook that launches the Gradio UI.
-scripts/main_gradio_app.py (New): Contains the Gradio application logic, adapted from your Notebook4MCP(4).ipynb and orchestrator.py.
-scripts/data/ (New or consolidated): Directory to hold model/asset data files (_models-data.py, etc.), potentially unified from both projects.
-scripts/anxlight_version.py (New): A centralized file to manage version numbers for all key components.
+Proposed File Structure & Changes (Conceptual for v3):
+Base: `anxety-solo/sdAIgen` repository structure.
+Key Files for AnxLight v3 Integration:
+- `notebook/AnxLight_Launcher_v0.0.5.ipynb`: The two-cell Colab notebook. Cell 1 runs `scripts/pre_flight_setup.py`; Cell 2 runs `scripts/main_gradio_app.py`.
+- `scripts/pre_flight_setup.py` (New for v3): Handles one-time heavy setup: VENV, core dependencies, tunneling clients, and all supported WebUI installations (calling `scripts/UIs/*.py`).
+- `scripts/main_gradio_app.py` (Refactored for v3): Contains the Gradio application logic. Manages UI, session asset downloads (via `modules/Manager.py`), `anxlight_config.json` generation, and orchestrates `scripts/launch.py`.
+- `scripts/data/` (Consolidated): Directory holding `sd15_data.py`, `sdxl_data.py` (which now include LoRA data).
+- `scripts/anxlight_version.py` (New for v3): Centralized version management.
+- `scripts/en/downloading-en.py` (Inherited): Role significantly reduced in v3. No longer handles primary WebUI/VENV setup.
+- `scripts/launch.py` (Inherited): Used for WebUI execution and tunneling.
+- `modules/*` (Inherited): Core utilities like `Manager.py`, `webui_utils.py`, `TunnelHub.py`, `CivitaiAPI.py`, `json_utils.py` are used by AnxLight scripts.
 
-Proposed Notebook Structure (for improved debugging):
-To enhance stability and make debugging easier, the launcher notebook will be restructured into two distinct cells:
-*   **Cell 1: Setup & Dependencies:** This cell will be responsible for all prerequisite operations: cloning/updating the AnxLight repository, and installing all necessary dependencies (`gradio`, `pyngrok`, etc.). This isolates the setup process.
-*   **Cell 2: Launch Application:** This cell will handle the final steps: setting environment variables and executing `scripts/main_gradio_app.py` via `runpy`. This separation allows the user to verify a successful setup before attempting to launch the application.
+Proposed Notebook Structure (v3 Architecture):
+The launcher notebook (`notebook/AnxLight_Launcher_v0.0.5.ipynb`) is structured into two distinct cells:
+*   **Cell 1: Pre-Flight Setup & Heavy Installation:** Clones/updates the AnxLight repository, `cd`s into it, and executes `scripts/pre_flight_setup.py`. This script handles all prerequisite operations like VENV setup, dependency installation, tunneling client setup, and the installation of all supported WebUIs.
+*   **Cell 2: Launch Gradio Application:** Sets necessary environment variables and executes `scripts/main_gradio_app.py` (using the Python from the VENV created in Cell 1) to launch the Gradio UI.
 
-Detailed Plan:
-Project Setup (Initial Step in Colab Notebook - Cell 1):
-The new notebook/AnxLight_Launcher_v0.0.5.ipynb notebook will start similarly to the original anxety-solo/sdAIgen notebook.
-Action: Run scripts/setup.py (from anxety-solo/sdAIgen repo). This script downloads all necessary files from the anxety-solo/sdAIgen GitHub repository (including modules/*, scripts/UIs/*, scripts/en/downloading-en.py, scripts/launch.py, etc.) into the Colab environment (e.g., ~/ANXETY/).
-Addition: Ensure gradio, pyngrok, and any other specific dependencies for the Gradio UI are installed in this cell.
-Launch Gradio UI (Second Step in Colab Notebook - Cell 2):
-Action: This cell will execute the new scripts/main_gradio_app.py script.
-scripts/main_gradio_app.py will:
-Define and launch the Gradio interface (ported from your Notebook4MCP(4).ipynb).
-UI Elements:
-WebUI selection.
-SD 1.5/XL asset toggle.
-Checkboxes/dropdowns for models, VAEs, LoRAs, ControlNets.
-Input for custom CLI arguments, NGROK token, Civitai token, etc.
-\"Install, Download & Launch\" button.
-A tab or section for \"Live Log/Output\".
-Data Population: The Gradio UI will populate its selection widgets using data from scripts/data/_models-data.py, _xl-models-data.py, etc. These data files should be compatible with or adapted from anxety-solo/sdAIgen's format or your existing ones. Consolidating them into a clear structure within scripts/data/ would be ideal.
-Configuration & Orchestration by Gradio (scripts/main_gradio_app.py):
-When the user clicks \"Install, Download & Launch\" in the Gradio UI:
-a. Collect User Input: Gather all selections from the Gradio interface.
-b. Generate anxlight_config.json:
-Crucial Step: Transform the user's selections into a anxlight_config.json file located at ~/ANXETY/anxlight_config.json.
-Compatibility: This anxlight_config.json file must strictly adhere to the schema and keys expected by anxety-solo/sdAIgen's scripts/en/downloading-en.py and scripts/launch.py. This will require careful mapping from your Gradio UI elements to the fields in the original anxlight_config.json. Analyze scripts/en/widgets-en.py from anxety-solo/sdAIgen to understand how it constructs this file.
-The modules/json_utils.py from anxety-solo/sdAIgen can be used for saving the JSON.
-c. Update WebUI Paths (if needed): Call modules.webui_utils.update_current_webui() (from anxety-solo/sdAIgen) after anxlight_config.json is partially formed with the WebUI choice, to ensure WebUI-specific paths are correctly set in anxlight_config.json before downloading-en.py runs.
-d. Execute Backend Scripts (Sequentially):
-The scripts/main_gradio_app.py script (specifically, the function tied to the launch button, similar to your save_and_launch_generator) will then execute the standard anxety-solo/sdAIgen scripts using subprocess or runpy to allow for output capturing:
-python3 ~/ANXETY/scripts/en/downloading-en.py
-python3 ~/ANXETY/scripts/launch.py
-Log Streaming: Capture stdout and stderr from these script executions and stream them to the \"Live Log\" area in the Gradio UI in real-time. Your save_and_launch_generator likely has logic for this that can be adapted.
-Minimizing Changes to anxety-solo/sdAIgen Core Files:
-scripts/setup.py (Theirs): Unchanged.
-scripts/en/widgets-en.py (Theirs): Not used in this new flow. Its role is taken over by scripts/main_gradio_app.py.
-scripts/en/downloading-en.py (Theirs): Unchanged. It reads ~/ANXETY/anxlight_config.json.
-scripts/launch.py (Theirs): Unchanged. It reads ~/ANXETY/anxlight_config.json and uses TunnelHub.py.
-modules/* (Theirs - webui_utils.py, Manager.py, TunnelHub.py, CivitaiAPI.py, json_utils.py): Unchanged. They are called by downloading-en.py and launch.py.
-scripts/UIs/*.py (Theirs): Unchanged. Called by downloading-en.py.
-Original Notebook (Theirs): The cell launching widgets-en.py and subsequent script execution cells would be replaced by a single cell that installs Gradio and runs scripts/main_gradio_app.py.
-Handling of Assets and Downloads:
-Asset Data: Consolidate _models-data.py, _loras-data.py, etc. into a consistent format. Place them in a scripts/data/ subdirectory. The Gradio UI will read from these.
-Download Mechanism:
-scripts/en/downloading-en.py uses modules/Manager.py from anxety-solo/sdAIgen.
-Option 1 (Minimal Change): Stick with Manager.py. The Gradio UI just ensures the correct URLs and download paths are in anxlight_config.json.
-Option 2 (Enhance Manager.py): Modify Manager.py to optionally use aria2c if installed (for potentially faster downloads) or huggingface-hub for specific Hugging Face URLs. This could be controlled by a new flag in anxlight_config.json set by the Gradio UI. This is more invasive to \"Theirs\" but offers benefits.
-Option 3 (Hybrid): For some downloads (e.g., WebUI repos, smaller files), use Manager.py. For large model files, especially from Hugging Face, scripts/main_gradio_app.py could before calling downloading-en.py, pre-download these using huggingface-hub to the locations expected by anxlight_config.json, and downloading-en.py would then find them already present. This adds complexity to the Gradio script's role.
-Recommended initial approach: Option 1 for simplicity, then consider Option 2 as a future enhancement to Manager.py.
-VENV Management:
-This will continue to be handled by scripts/en/downloading-en.py from anxety-solo/sdAIgen, which supports different VENVs. The Gradio UI needs to ensure any relevant VENV selection flags are correctly set in anxlight_config.json if the original system supports such choices via widgets-en.py.
-Considerations for runpy:
-While your Notebook4MCP(4).ipynb uses runpy to load orchestrator.py and data modules to avoid Colab caching, anxety-solo/sdAIgen's setup.py already re-downloads files, which largely mitigates caching for subsequent runs within the same Colab session if setup.py is re-run.
-Using runpy or subprocess.run(['python3', script_path]) from within scripts/main_gradio_app.py to call downloading-en.py and launch.py is good for isolation and capturing output.
-Alternative Methods & Enhancements to Consider:
-Downloading:
-aria2c: As mentioned, Manager.py could be augmented to use aria2c if available. This involves checking for aria2c on the system and constructing the appropriate command.
-subprocess.run(['aria2c', '-x', '16', '-s', '16', '-k', '1M', '-o', output_filename, download_url])
-huggingface-hub: Manager.py could also be augmented to use hf_hub_download(repo_id=..., filename=..., local_dir=...) for URLs recognized as Hugging Face Hub links.
-Dependency Installation (pip):
-downloading-en.py (or the UI-specific setup scripts it calls) should continue to handle pip install -r requirements.txt or individual package installs. The Gradio UI doesn't need to interfere here, beyond ensuring the correct WebUI is selected.
-Summary of Integration Steps:
-Adapt Colab Notebook: Modify ANXETY_sdAIgen_EN.ipynb to run anxety-solo/sdAIgen's setup.py, then install Gradio, then launch your new scripts/main_gradio_app.py.
-Create scripts/main_gradio_app.py:
-Port Gradio UI definition from Notebook4MCP(4).ipynb.
-Load asset data for UI population.
-Implement the \"launch button\" function to:
-Generate ~/ANXETY/anxlight_config.json compatible with anxety-solo/sdAIgen.
-Call modules.webui_utils.update_current_webui() with the necessary part of the settings.
-Execute ~/ANXETY/scripts/en/downloading-en.py (capturing/streaming output).
-Execute ~/ANXETY/scripts/launch.py (capturing/streaming output).
-Data File Management: Consolidate and place asset data files (_models-data.py, etc.) in a common, accessible location like scripts/data/.
-Testing: Thoroughly test the end-to-end flow, especially the anxlight_config.json generation and the subsequent execution of downloading-en.py and launch.py.
-This plan attempts to reuse as much of the robust anxety-solo/sdAIgen backend as possible, while replacing its ipywidgets frontend with your Gradio UI and incorporating your log streaming and potentially improved download handling over time.
-I am now ready with the plan. Please confirm if you'd like me to proceed with any specific part or if you have questions.
+Detailed Plan (Conceptual Flow for v3):
+1.  **Notebook Cell 1 - Pre-Flight Setup:**
+    *   User runs Cell 1.
+    *   Action: Clones/updates `drf0rk/AnxLight` repository.
+    *   Action: Executes `python scripts/pre_flight_setup.py`. This script:
+        *   Displays versions from `anxlight_version.py`.
+        *   Creates/activates a Python Virtual Environment (VENV).
+        *   Installs core dependencies (Gradio, etc.) into the VENV.
+        *   Installs tunneling clients.
+        *   Installs all supported WebUIs by calling their respective setup scripts from `scripts/UIs/`.
+
+2.  **Notebook Cell 2 - Launch Gradio UI & Session:**
+    *   User runs Cell 2 (after Cell 1 completes).
+    *   Action: Sets environment variables (`PROJECT_ROOT`, `home_path`, `scr_path`, `settings_path`, `venv_path`, `PYTHONPATH`).
+    *   Action: Executes `scripts/main_gradio_app.py` using the VENV's Python interpreter.
+    *   `scripts/main_gradio_app.py` then:
+        *   Defines and launches the Gradio interface.
+        *   Populates UI asset choices from `scripts/data/sd15_data.py` or `scripts/data/sdxl_data.py`.
+        *   On user "Launch" click:
+            *   a. Collects UI selections.
+            *   b. Verifies chosen WebUI is installed (by `pre_flight_setup.py`).
+            *   c. Downloads selected session-specific assets (models, VAEs, LoRAs, etc.) to their correct paths using `modules/Manager.py` and `modules/webui_utils.py`.
+            *   d. Generates `anxlight_config.json` (compatible with `scripts/launch.py`).
+            *   e. Calls `modules/webui_utils.py`'s `update_current_webui()` to finalize paths in config.
+            *   f. Executes `scripts/launch.py` (using `modules/TunnelHub.py`) to start the WebUI and tunnel.
+            *   g. Streams log output to the Gradio UI.
+
+Minimizing Changes to `anxety-solo/sdAIgen` Core Files (AnxLight v3 Context):
+- `scripts/setup.py` (Theirs): Its role for initial repo sync by the notebook might be adapted or incorporated into Cell 1 logic directly.
+- `scripts/en/widgets-en.py` (Theirs): Not used in the v3 flow (Gradio UI replaces it).
+- `scripts/en/downloading-en.py` (Theirs): Its original role for comprehensive setup is superseded by `scripts/pre_flight_setup.py` and `scripts/main_gradio_app.py`'s asset download logic. It might be deprecated or used for very specific, minor tasks if any.
+- `scripts/launch.py` (Theirs): Reused, reads `anxlight_config.json` and uses `TunnelHub.py`.
+- `modules/*` (Theirs): Reused, with AnxLight possibly enhancing `Manager.py` and `webui_utils.py`.
+- `scripts/UIs/*.py` (Theirs): Reused by `pre_flight_setup.py` but require refactoring to be standard Python scripts (e.g., removing IPython calls).
+
+Handling of Assets and Downloads (v3):
+- Asset Data: Consolidated into `scripts/data/sd15_data.py` and `scripts/data/sdxl_data.py`, including models, VAEs, ControlNets, and LoRAs.
+- Download Mechanism:
+    - Initial WebUI installations: Handled by `scripts/pre_flight_setup.py` calling `scripts/UIs/*.py` (which might internally use `modules/Manager.py` or other methods).
+    - Session Asset Downloads: Handled by `scripts/main_gradio_app.py` using `modules/Manager.py` (which uses `aria2c`, `gdown`, `curl`, and handles tokens).
+
+VENV Management (v3):
+- Handled by `scripts/pre_flight_setup.py`. `main_gradio_app.py` and `launch.py` are expected to run within this VENV.
+
+This updated plan reflects the v3 architecture, emphasizing modular setup and focused responsibilities for each component.
