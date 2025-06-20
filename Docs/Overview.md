@@ -1,1 +1,168 @@
-# AnxLight Project Documentation\n\n## 1. Project Overview (As of 2025-06-19)\n\n**Project: AnxLight**\n*   **Base Repository:** Fork of `anxety-solo/sdAIgen`.\n*   **Core Goal:** \n    *   To integrate a modern Gradio-based user interface with the robust backend setup and launch mechanisms of the `anxety-solo/sdAIgen` project.\n    *   To provide a user-friendly way to configure, download assets for, and launch various Stable Diffusion WebUIs and related tools.\n    *   **Multi-Platform Support:** A key objective is to ensure AnxLight is adaptable for use across diverse environments, including Google Colab, Kaggle, cloud platforms (e.g., Vast.ai, Lightning AI), and local setups. This requires careful consideration of path management and environment configurations.\n*   **Development Plan:** A comprehensive development strategy, outlining phases, specific tasks, and long-term goals (including multi-platform support and detailed logging) is maintained in `AnxLight_Development_Plan.md`, located in the root of the `drf0rk/AnxLight` repository.\n*   **Architecture (Current Development Phase):**\n    *   **Platform Entry Point (e.g., `notebook/AnxLight_Launcher_v0.0.2.ipynb`):** A versioned, single-cell Colab notebook. It clones/updates the `drf0rk/AnxLight` repository (from `main` branch), installs dependencies, sets environment variables, and uses `runpy` to execute `scripts/main_gradio_app.py`. *Needs update to import `traceback` and target `main` branch consistently.*\\n    *   **Gradio UI & Orchestration (`scripts/main_gradio_app.py` - v0.0.7):**\n        *   Manually updated by User to v0.0.7.\n        *   Includes versioning (`APP_VERSION = \"AnxLight Gradio App v0.0.7\"`) and robust `sys.path` setup (global dummy classes, `MODULES_PATH` prioritized) for reliable internal module imports.\n        *   Handles UI, configuration generation (`anxlight_config.json`), and backend script orchestration with improved logging and path handling for subprocesses.\n    *   **Data Modules (`scripts/data/`):** (As before)\n    *   **Backend (Adapted from `anxety-solo/sdAIgen`):** \n        *   `scripts/en/downloading-en.py` (AnxLight v0.0.2): Adapted for subprocess execution.\n        *   `scripts/UIs/A1111.py` (Inherited): **Requires refactoring** to remove IPython-specific calls. Code for manual fix provided to user.\n        *   Other scripts (e.g., `scripts/launch.py`) and modules (`modules/*`) are utilized, relying on environment variables.\n*   **Key Features Being Integrated/Retained:** Gradio UI, `runpy` execution, user-defined data modules, live log streaming, multi-platform support.\n\n---\n\n## 2. File Descriptions (As of 2025-06-19)\n\n- **`notebook/AnxLight_Launcher_v0.0.2.ipynb` (Versioned Colab Notebook):**\n    - User's primary entry point.\n    - **Responsibilities (Post-Pending Update):**\n        1.  Imports `traceback` for robust error reporting.\n        2.  Clones `drf0rk/AnxLight` repo or pulls latest changes (from `main` branch) using robust `git` commands (variable `BRANCH_NAME` to be updated to \"main\").\n        3.  Installs `gradio`.\n        4.  Sets crucial environment variables and `PYTHONPATH`.\n        5.  Executes `scripts/main_gradio_app.py` using `runpy.run_path()`.\n    - **Status:** Updated on 2025-06-18 to import `traceback` and target `BRANCH_NAME=\"main\"`.\n\n- **`AnxLight_Development_Plan.md` (In Repository Root):** (As before)\n\n- **`scripts/main_gradio_app.py` (AnxLight Gradio App v0.0.7):**\n    - **The Core Gradio Application.** (Manually updated by User to `APP_VERSION = \"AnxLight Gradio App v0.0.7\"`).\n    - **Responsibilities & Current Features:**\n        1.  Robust initial `sys.path` setup (global dummy classes, `MODULES_PATH` prioritized) for reliable internal module imports. Includes version/path debug prints.\n        2.  (UI Definition as before)\n        3.  `_execute_backend_script()`: Robustly sets `PYTHONPATH` for subprocesses.\n        4.  `launch_anxlight_main_process()`: Comprehensive config generation, calls `webui_utils.update_current_webui()` (if real module loaded), executes backend scripts.\n        5.  (Other event handlers and bug fixes as before)\n\n- **`scripts/en/downloading-en.py` (AnxLight Adapted Version - v0.0.2):** (As before - NameError for `load_settings` fixed)\n\n- **`scripts/UIs/A1111.py` (Inherited - Requires Refactor):**\n    - The inherited A1111 WebUI setup script.\n    - **Known Issue:** Contains IPython-specific commands (e.g., `get_ipython().system`, `capture.capture_output`) which cause `AttributeError` when run as a standard Python subprocess.\n    - **Status:** Code to refactor these calls to standard `subprocess.run()` has been provided by the Assistant for manual application by the user due to persistent API update issues. This refactoring is critical for the script to function in the AnxLight environment. *Application of this fix by the user is pending confirmation.*\n\n- **`scripts/data/...` (As before)**\n- **Inherited Key Files (e.g., `scripts/launch.py`, `modules/*`):** (As before)\n\n---\n\n## 3. Changelog\n\n### 2025-06-19 (Manual Update of main_gradio_app.py to v0.0.7 for Robust Path/Dummy Handling)\n- **File(s) Affected:** `scripts/main_gradio_app.py` (Manually updated by User to v0.0.7 based on Assistant's code), `LightDoc.md` (This document).\n- **Change:**\n    1.  **`scripts/main_gradio_app.py` (v0.0.7):**\n        *   Updated `APP_VERSION` to \"AnxLight Gradio App v0.0.7\".\n        *   Moved dummy class definitions (`_DummyDataModule`, etc.) to global scope; initialized module placeholders with dummy instances, overwritten by real imports. Resolves `NameError` for dummy classes if imports succeed.\n        *   Ensured `MODULES_PATH` is correctly defined and prioritized in `sys.path`.\n        *   Enhanced `_execute_backend_script` for robust `PYTHONPATH` for subprocesses.\n        *   Improved `launch_anxlight_main_process` for config generation and default path handling.\n- **Reason:** To resolve `NameError` for dummy classes (e.g. `_DummyWebUIUtilsModule`), fix `ModuleNotFoundError` for `json_utils`, ensure reliable module finding for subprocesses, and improve overall robustness after previous API update failures.\n\n### 2025-06-19 (Attempted Refactor of A1111.py for Standard Subprocess Execution - Manual Fix Pending)\n- **File(s) Affected:** `scripts/UIs/A1111.py` (Code for manual update provided by Assistant), `LightDoc.md` (This document).\n- **Change:**\n    1.  **`scripts/UIs/A1111.py` (Proposed Changes by Assistant):**\n        *   Code was generated to remove IPython-specific imports and calls (`get_ipython().system`, `capture.capture_output`).\n        *   Replace `ipySys()` calls with standard `subprocess.run()`.\\n- **Reason:** `A1111.py` was causing `AttributeError: 'NoneType' object has no attribute 'system'`. Corrected code was provided by Assistant for manual application by the user due to persistent GitHub API update issues. **Actual application of this fix to the repository by the user is pending confirmation.**\n\n### 2025-06-19 (Manual Update of main_gradio_app.py to v0.0.6 - Path Handling)\n- **File(s) Affected:** `scripts/main_gradio_app.py` (Manually updated by User to v0.0.6 based on Assistant's code), `LightDoc.md` (This document).\n- **Change:**\n    1.  **`scripts/main_gradio_app.py` (v0.0.6):**\n        *   Updated `APP_VERSION` to \"AnxLight Gradio App v0.0.6\".\n        *   Improved `sys.path` modification to correctly include `MODULES_PATH`.\n        *   Enhanced `_execute_backend_script` for `PYTHONPATH` setting.\n        *   Improved `launch_anxlight_main_process` for config/path handling.\n- **Reason:** To resolve `ModuleNotFoundError` for `json_utils` and improve module resolution. This was an intermediate step before v0.0.7 which further refined dummy class handling.\n\n### 2025-06-19 (Fix NameError in downloading-en.py & Add Debug for Main App Imports)\n- **File(s) Affected:** `scripts/main_gradio_app.py` (Considered v0.0.5 conceptually at this stage by Assistant), `scripts/en/downloading-en.py` (Updated to AnxLight v0.0.2 via API), `LightDoc.md` (This document).\n- **Change:**\n    1.  **`scripts/en/downloading-en.py` (AnxLight v0.0.2):**\n        *   Corrected `NameError` for `load_settings`. (Applied via API by Assistant)\n    2.  **`scripts/main_gradio_app.py` (Conceptual v0.0.5 Changes by Assistant):**\n        *   Debug prints for `sys.path` added.\n- **Reason:** To fix runtime error in `downloading-en.py` and diagnose `main_gradio_app.py` import issues.\n\n(Older changelog entries remain as they were)\n...\n\n---\n\n## 4. Assistant's Diary\n\n### 2025-06-19 (Correcting Documentation and Planning Next Steps for Notebook/A1111.py)\n**Objective:** Accurately document the project state after user clarification and persistent API issues, then attempt notebook update.\n**Process:**\n1.  User clarified that the manual update for `scripts/UIs/A1111.py` (to fix `AttributeError`) was **not yet performed**. Previous `LightDoc.md` entries incorrectly stated it was.\n2.  User also clarified they had *not yet* manually updated `notebook/AnxLight_Launcher_v0.0.2.ipynb` to add `import traceback` or change `BRANCH_NAME`.\n3.  The manual update to `scripts/main_gradio_app.py` to v0.0.7 (fixing `sys.path` and `NameError` for dummy classes) **was confirmed** by the user. This is **Significant Code Interaction Event #1** for this new consolidated diary view of recent events.\n4.  The user's action of deleting the old repo and re-uploading `feature/backend-integration` content as the new `main` branch was noted. All future operations should target `main`.\n5.  **Corrected `LightDoc.md`**:\n    *   Changelog and Diary entries for `A1111.py` revised to show its fix is *pending manual application by the user*.\n    *   Changelog and Diary entries for `main_gradio_app.py` reflect the successful manual update to v0.0.7.\n    *   File descriptions for `A1111.py` and `main_gradio_app.py` updated.\n    *   Changelog and Diary entries for the notebook update were revised to reflect it's an *attempted/pending* update. This `LightDoc.md` update itself is part of the current documentation effort.\n6.  **Errors Faced & Documented:**\n    *   `AttributeError: 'NoneType' object has no attribute 'system'` in `A1111.py` (pending fix).\n    *   `ModuleNotFoundError: No module named 'json_utils'` in `main_gradio_app.py` (resolved by v0.0.7 manual update).\n    *   `NameError: name 'DummyWebUIUtils' is not defined` (or `_DummyWebUIUtilsModule`) in `main_gradio_app.py` (resolved by v0.0.7 manual update).\n    *   `NameError: name 'traceback' is not defined` in launcher notebook (pending fix).\n    *   Persistent GitHub API HTTP 409 SHA mismatch errors for multiple files.\n**Outcome:** `LightDoc.md` should now more accurately reflect the project's true state and the troubleshooting history. `main_gradio_app.py` is fixed. `A1111.py` and the launcher notebook still require their respective fixes to be applied.\n**Next Steps:**\n    1.  Attempt to programmatically update `notebook/AnxLight_Launcher_v0.0.2.ipynb` to add `import traceback` and set `BRANCH_NAME=\\\"main\\\"`. If SHA issues persist, provide code for manual update. (This is the immediate next action after this diary entry).\n    2.  Crucially, remind User to manually apply the provided fix for `scripts/UIs/A1111.py`.\n    3.  Once all three files are confirmed fixed and in the `main` branch, perform a clean test run.\n\n(Older diary entries from previous sessions/days are below this point)\n...
+# AnxLight Project Documentation
+
+## 1. Project Overview (As of YYYY-MM-DD_v3_ARCHITECTURE)
+
+**Project: AnxLight**
+*   **Base Repository:** Fork of `anxety-solo/sdAIgen`.
+*   **Core Goal:** 
+    *   To integrate a modern Gradio-based user interface with the robust backend setup and launch mechanisms of the `anxety-solo/sdAIgen` project.
+    *   To provide a user-friendly way to configure, download assets for, and launch various Stable Diffusion WebUIs and related tools.
+    *   **Multi-Platform Support:** A key objective is to ensure AnxLight is adaptable for use across diverse environments, including Google Colab, Kaggle, cloud platforms, and local setups.
+*   **Development Plan:** The primary, most current*   **Base Repository:** Fork of `anxety-solo/sdAIgen`.
+*   **Core Goal:** 
+    *   To integrate a modern Gradio-based user interface with the robust backend setup and launch mechanisms of the `anxety-solo/sdAIgen` project.
+    *   To provide a user-friendly way to configure, download assets for, and launch various Stable Diffusion WebUIs and related tools.
+    *   **Multi-Platform Support:** A key objective is to ensure AnxLight is adaptable for use across diverse environments, including Google Colab, Kaggle, cloud platforms, and local setups.
+*   **Development Plan:** The primary, continuously updated roadmap is `AnxLight_Development_Plan.md` (in the repository root). The current major effort is the **v3 Architecture refactor**.
+*   **Architecture (Current v3 Implementation Phase):**
+    *   **Platform Entry Point (`notebook/AnxLight_Launcher_v0.0.5.ipynb`):** A versioned, two-cell Colab notebook.
+        *   **Cell 1 (Pre-Flight Setup):** Clones/updates the AnxLight repo, then executes `scripts/pre_flight_setup.py`.
+        *   **Cell 2 (Gradio UI & Launch):** Sets environment variables and executes `scripts/main_gradio_app.py` using the VENV Python.
+    *   **Versioning Script (`scripts/anxlight_version.py`):** Centralizes version numbers for components (e.g., `MAIN_GRADIO_APP_VERSION = "1.0.0"`, `ANXLIGHT_OVERALL_SYSTEM_VERSION = "3.0 development strategy is the user-provided "v3 Architecture Plan" and the evolving `AnxLight_Development_Plan.md` (located in the root of the `drf0rk/AnxLight` repository).
+*   **Architecture (Current v3 Implementation Phase):**
+    *   **Platform Entry Point (`notebook/AnxLight_Launcher_v0.0.5.ipynb`):** A versioned, two-cell Colab notebook.
+        *   Cell 1: Clones/updates the AnxLight repo and executes `scripts/pre_flight_setup.py` for all heavy initial setup (VENV, dependencies, WebUI installations).
+        *   Cell 2: Sets environment variables and executes `scripts/main_gradio_app.py` (using VENV Python) to launch the Gradio UI.
+    *   **Versioning Script (`scripts/anxlight_version.py`):** Centralizes version numbers for key components (e.g., `MAIN_GRADIO_APP_VERSION = "1.0.0"`, `ANXLIGHT_OVERALL_SYSTEM_VERSION = "3.0.0-alpha"`).
+    *   **Pre-Flight Setup (`scripts/pre_flight_setup.py` - v0.1.0):** Handles one-time environment preparation: VENV, core dependencies, tunneling clients, and installation of all supported WebUIs (by calling `scripts/UIs/*.py`).
+    *   **Gradio UI & Orchestration (`scripts/main_gradio_app.py` - v1.0.0):** 
+        *   Provides the Gradio user interface.
+        *   Imports asset data from consolidated `scripts/data/sd15_data.py` and `scripts/data/sdxl_data.py`.
+        *   Handles session-specific asset downloads (models, VAEs, LoRAs, etc.) using `modules/Manager.py`.
+.0-alpha"`).
+    *   **Pre-Flight Setup Script (`scripts/pre_flight_setup.py` - v0.1.0):** Handles all one-time heavy installations: VENV creation, core dependencies, tunneling clients, and all supported WebUIs (via `scripts/UIs/*.py`).
+    *   **Gradio UI & Orchestration (`scripts/main_gradio_app.py` - v1.0.0):** 
+        *   Provides the Gradio user interface.
+        *   Dynamically loads asset data from `scripts/data/sd15_data.py` or `scripts/data/sdxl_data.py`.
+        *   Manages session-specific asset downloads using `modules/Manager.py` (via `download_url_to_path`).
+        *   Generates `anxlight_config.json`.
+        *   Orchestrates `scripts/launch.py` for WebUI startup and tunneling.
+    *   **Data Modules (`scripts/data/sd15_data.py`, `scripts/data/sdxl_data.py`):** Consolidated data sources for SD1.5 and SDXL assets respectively, including models, VAEs, ControlNets, and LoRAs.
+    *   **Backend (Adapted from `anxety-solo/sdAIgen`):** 
+        *   `scripts/launch.py`: Inherited for WebUI execution and tunneling.
+        *   `modules/Manager.py`: Inherited and refactored for v3 (added `download_url_to_path`).
+        *   `modules/webui_utils.py`: Inherited and refactored for v3 (added `get_webui_asset_path`, `get_webui_installation_root`).
+        *   `modules/TunnelHub.py`, `modules/json_utils.py`, `modules/CivitaiAPI.py`: Inherited and utilized.
+        *   `scripts/UIs/A1111.py` (and others): Inherited, but **require refactoring** to remove IPython dependencies for compatibility with `pre_flight        *   Generates `anxlight_config.json`.
+        *   Orchestrates `scripts/launch.py` for WebUI startup and tunneling.
+    *   **Data Modules (`scripts/data/sd15_data.py`, `scripts/data/sdxl_data.py`):** Consolidated data sources for SD1.5 and SDXL assets respectively, including models, VAEs, ControlNets, and LoRAs.
+    *   **Backend (Adapted from `anxety-solo/sdAIgen`):** 
+        *   `scripts/launch.py`: Inherited for WebUI execution and tunneling (via `modules/TunnelHub.py`).
+        *   `modules/Manager.py`: Inherited and refactored (e.g., `download_url_to_path`) for downloads.
+        *   `modules/webui_utils.py`: Inherited and refactored (e.g., `get_webui_asset_path`) for path management.
+        *   `scripts/UIs/A1111.py` (and others): Inherited WebUI installers, **requiring refactor** to remove IPython calls for compatibility with `pre_flight_setup.py`.
+        *   `scripts/en/downloading-en.py`: Role significantly reduced/deprecated in v3.
+*   **Key Features (v3 Plan):** Two-cell notebook, centralized pre-flight setup, robust versioning, Gradio UI, session-specific asset downloads, live log streaming, multi-platform support, planned "Download Session Logs" feature.
+
+---
+
+## 2. File Descriptions (As of YYYY-MM-DD_v3_ARCHITECTURE)
+
+- **`notebook/AnxLight_Launcher_v0.0.5.ipynb` (SHA `ef26a601bf51...` - v3 Launcher):**
+    - User's primary entry point, implementing the v3 two-cell architecture.
+    - **Cell 1:** Clones/updates repo, executes `scripts/pre_flight_setup.py`.
+    - **Cell 2:** Sets environment, executes `scripts/main_gradio_app.py` using VENV Python.
+    - **Status:** Updated to v3 structure. `ANXLIGHT_LAUNCHER_setup.py`.
+        *   `scripts/en/downloading-en.py`: Role significantly reduced/deprecated in v3.
+*   **Key Features (v3 Plan):** Two-cell notebook, centralized pre-flight setup, robust versioning, Gradio UI, session-specific asset downloads, live log streaming, multi-platform support, planned log download feature.
+
+---
+
+## 2. File Descriptions (As of YYYY-MM-DD_V3_UPDATE_DATE)
+
+- **`notebook/AnxLight_Launcher_v0.0.5.ipynb` (SHA `ef26a601bf51...` - v3 Launcher):**
+    - User's primary entry point, implementing the v3 two-cell architecture.
+    - **Cell 1:** Clones/updates repo, executes `scripts/pre_flight_setup.py`.
+    - **Cell 2:** Sets environment and executes `scripts/main_gradio_app.py` using VENV Python.
+    - **Status:** Updated for v3. `ANXLIGHT_LAUNCHER_NOTEBOOK_VERSION` in `anxlight_version.py` is "0.0.5".
+
+- **`scripts/anxlight_version.py` (SHA `96023add48...` - v3 Versioning):**
+    - Central source for component version strings.
+    - **Status:** Contains `MAIN_GRADIO_APP_VERSION = "1.0.0"`, `PRE_FLIGHT_SETUP_PY_VERSION = "0.1.0"`, etc.
+
+- **`scripts/pre_flight_setup.py` (SHA `dd199d24...` - v3 Pre-Flight Setup v0.1.0):**
+    - Handles all one-time heavy installations (VENV, dependencies, WebUIs via `scripts/UIs/*`, tunneling clients). Executed by Launcher Cell 1.
+    - **Status:** Initial v3 version created.
+
+- **`scripts/main_gradio_app.py` (SHA `6a6d6ef4...` - v3 Gradio App v1.0.0):**
+    - Core Gradio application for v3.
+    - **Responsibilities:** UI, dynamic data loading from `scripts/data/*_data.py`, session asset downloads (via `modules/Manager.py`), `anxlight_config.json` generation, `scripts/launch.py` orchestration._NOTEBOOK_VERSION = "0.0.5"` in `anxlight_version.py`.
+
+- **`scripts/anxlight_version.py` (SHA `96023add48...` - v3 Versioning):**
+    - Central source for component version strings.
+    - **Status:** Contains `MAIN_GRADIO_APP_VERSION = "1.0.0"`, `PRE_FLIGHT_SETUP_PY_VERSION = "0.1.0"`, etc.
+
+- **`scripts/pre_flight_setup.py` (SHA `dd199d24...` - v3 Pre-Flight Setup v0.1.0):**
+    - Handles all initial heavy setup: VENV, dependencies, tunneling clients, all WebUI installations. Executed by Launcher Cell 1.
+    - **Status:** Initial v3 version created.
+
+- **`scripts/main_gradio_app.py` (SHA `6a6d6ef4...` - Gradio App v1.0.0 - v3 Refactor):**
+    - Core Gradio application.
+    - **Responsibilities (v3):** UI, dynamic data loading from `sd15_data.py`/`sdxl_data.py`, session asset downloads (via `Manager.py`), `anxlight_config.json` generation, `launch.py` orchestration.
+    - **Status:** Refactored for v3 data handling and orchestration.
+
+- **`scripts/data/sd15_data.py` (SHA `4145395e...` - SD1.5 Assets):**
+    - Consolidated data for SD1.5 models, VAEs, ControlNets, and LoRAs.
+    - **Status:** Updated to include LoRA data.
+
+- **`scripts/data/sdxl_data.py` (SHA `035041c9...` - SDXL Assets):**
+    - Consolidated data for SDXL models, VAEs, ControlNets, and LoRAs.
+    - **Status:** Updated to include LoRA data.
+
+- **`scripts/data/lora_data.py` (Deprecated):**
+    - Formerly held LoRA data. Contents merged into `sd15_data.py` and `sdxl_data.py`.
+    - **Status:** Deprecated.
+
+- **`scripts/launch.py` (Inherited):**
+    - Handles actual WebUI process startup and tunneling via `modules/TunnelHub.py`. Reads `anxlight_config.json`.
+    - **Status:** Largely unchanged from `anxety-solo/sdAIgen` but its successful operation depends on correct v3 config and environment.
+
+- **`modules/Manager.py` (
+    - **Status:** Refactored for v3 orchestration and data handling.
+
+- **`scripts/data/sd15_data.py` (SHA `4145395e...` - SD1.5 Assets):**
+    - Consolidated data for SD1.5 models, VAEs, ControlNets, and LoRAs.
+    - **Status:** Updated to include LoRA data.
+
+- **`scripts/data/sdxl_data.py` (SHA `035041c9...` - SDXL Assets):**
+    - Consolidated data for SDXL models, VAEs, ControlNets, and LoRAs.
+    - **Status:** Updated to include LoRA data.
+
+- **`scripts/data/lora_data.py` (SHA `168aa516...` - Deprecated):**
+    - Formerly contained LoRA definitions.
+    - **Status:** Deprecated; content merged into `sd15_data.py` and `sdxl_data.py`.
+
+- **`AnxLight_Development_Plan.md` (In Repository Root):** Primary detailed roadmap.
+
+- **`scripts/launch.py` (Inherited):** Handles actual WebUI process startup and tunneling via `modules/TunnelHub.py`. Reads `anxlight_config.json`.
+
+- **`modules/Manager.py` (SHA `42186db2...` - Refactored for v3):**
+    - Core download utility. V3 added `download_url_to_path()` for direct path downloads. Retains multi-source download capabilities and token handling.
+
+- **`modules/webui_utils.py` (SHA `64030407...` - Refactored for v3):**
+    - Manages WebUI-specific file paths. V3 added `get_webui_asset_path()` and `get_webui_installation_root()`. `_set_webui_paths()` populates config.
+
+- **`scripts/en/downloading-en.py` (Inherited - Role Reduced):**
+    - Original script for downloads and setup. Its primary setup role is superseded by `pre_flight_setup.py` and `main_gradio_app.py` in v3.
+
+- **`scripts/UIs/A1111.py` (Inherited - Requires Refactor):**
+    - Setup script for A1111 WebUI.
+    - **Known Issue:** Contains IPython calls; needs refactor to standard Python for `pre_flight_setup.py`.
+
+(Older file entries can be removed or marked as pre-v3 if they are no longer relevant or have been significantly replaced)
+
+---
+
+## 3. Changelog
+(This section contains historical changes and should be preserved. New entries are added to LightDoc.md)
+
+### 2025-06-19 (Manual Update of main_gradio_app.py to v0.0.7 for Robust Path/Dummy Handling)
+... (rest of existing changelog) ...
+
+---
+
+## 4. Assistant's Diary
+(This section contains historical diary entries and should be preserved. New entries are added to LightDoc.md)
+
+### 2025-06-19 (Correcting Documentation and Planning Next Steps for Notebook/A1111.py)
+... (rest of existing diary) ...
