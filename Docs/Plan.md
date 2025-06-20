@@ -62,10 +62,11 @@ Log Handling: \"Theirs\" implicitly logs to Colab output. \"Mine\" streams to Gr
 The goal is to leverage the robust backend of \"Theirs\" (tunneling, WebUI-specific setup, path management) with the improved UX and orchestration of \"Mine\" (Gradio UI, log streaming, runpy). The ultimate aim is to create a versatile tool adaptable across various platforms including Colab, Kaggle, cloud providers, and local setups.
 
 Phase 2: Plan for Gradio UI Integration into anxety-solo/sdAIgen (Updated for v3 Architecture)
-**Note:** This document outlines the initial strategic plan. The detailed implementation now follows the "v3 Architecture Plan" (provided by the user during development) and the continuously updated, detailed roadmap in `AnxLight_Development_Plan.md` located in the root of this repository.
+**Note:** This document outlines the initial strategic plan. The detailed implementation now follows the \"v3 Architecture Plan\" (provided by the user during development) and the continuously updated, detailed roadmap in `AnxLight_Development_Plan.md` located in the root of this repository.
 
 This plan aims to integrate a Gradio-based UI and operational improvements into the `anxety-solo/sdAIgen` project structure.
 Core Principle (v3): A two-cell notebook initiates a pre-flight setup for heavy installations. The second cell launches the Gradio application (`scripts/main_gradio_app.py`), which becomes the primary user interaction point for session configuration. `main_gradio_app.py` handles session-specific asset downloads, prepares `anxlight_config.json`, and then triggers `scripts/launch.py`.
+*   **Language Focus**: Development should prioritize English-language versions of components (e.g., `*-en.py` files) or create new language-agnostic components. Russian-specific files (e.g., `widgets-ru.py`, `downloading-ru.py`) from the original `anxety-solo/sdAIgen` repository should be ignored and are not part of AnxLight's scope.
 
 Proposed File Structure & Changes (Conceptual for v3):
 Base: `anxety-solo/sdAIgen` repository structure.
@@ -102,7 +103,7 @@ Detailed Plan (Conceptual Flow for v3):
     *   `scripts/main_gradio_app.py` then:
         *   Defines and launches the Gradio interface.
         *   Populates UI asset choices from `scripts/data/sd15_data.py` or `scripts/data/sdxl_data.py`.
-        *   On user "Launch" click:
+        *   On user \"Launch\" click:
             *   a. Collects UI selections.
             *   b. Verifies chosen WebUI is installed (by `pre_flight_setup.py`).
             *   c. Downloads selected session-specific assets (models, VAEs, LoRAs, etc.) to their correct paths using `modules/Manager.py` and `modules/webui_utils.py`.
