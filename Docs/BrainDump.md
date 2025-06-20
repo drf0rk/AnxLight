@@ -1,159 +1,133 @@
 # AnxLight Project Context (Brain Dump)
 
-**Date of Last Update:** 2025-06-19 (Corresponds to current AI session state)
+**Date of Last Update:** YYYY-MM-DD (Reflecting v3 Architecture Implementation)
 
 ## 1. Project Overview
 
 *   **Project Name:** AnxLight
 *   **Core Goal:** 
     *   To create a user-friendly and robust system for launching various Stable Diffusion WebUIs on Google Colab and other platforms. This involves integrating a modern Gradio-based user interface with the well-tested backend setup and launch mechanisms of the `anxety-solo/sdAIgen` project.
+    *   The current development is focused on implementing the **v3 Architecture Plan**, which emphasizes a two-cell notebook structure for improved setup and launch reliability.
     *   **Multi-Platform Ambition:** The tool is intended to be adaptable for use across various environments, including Google Colab, Kaggle, cloud IDEs (e.g., Vast.ai, Lightning AI), and local setups, requiring flexible path and environment management.
 *   **Base Repository (Forked From):** `anxety-solo/sdAIgen` (GitHub: `https://github.com/anxety-solo/sdAIgen`)
 *   **Current Development Repository:** `drf0rk/AnxLight` (GitHub: `https://github.com/drf0rk/AnxLight`)
 *   **Primary User Interface:** Gradio
 
 ### 1.1. Development Roadmap
-*   A detailed, multi-phase development strategy, including long-term goals and specific implementation steps, is maintained in the `AnxLight_Development_Plan.md` file located in the root of the `drf0rk/AnxLight` repository. This plan should be consulted for an overview of the project's direction.
+*   A detailed, multi-phase development strategy, including long-term goals and specific implementation steps, is maintained in the `AnxLight_Development_Plan.md` file located in the root of the `drf0rk/AnxLight` repository. The user-provided "v3 Architecture Plan" currently guides detailed implementation.
 
-## 2. Current Architecture & Key Files
+## 2. Current Architecture & Key Files (v3 Implementation)
 
-### 2.1. Colab Launcher (`notebook/AnxLight_Launcher_v0.0.2.ipynb`)
-*   **Purpose:** Single-cell Colab notebook to set up the environment and launch the Gradio application. Adaptable for other platform launchers.
-*   **Functionality:**
-    1.  Clones the `drf0rk/AnxLight` repository (targeting the `main` branch for current development) or pulls the latest changes.
-    2.  Installs necessary Python dependencies (primarily `gradio`).
-    3.  Changes the working directory into the cloned repository (`PROJECT_ROOT`).
-    4.  **Sets crucial environment variables** (`home_path`, `scr_path`, `settings_path`, `venv_path`) relative to `PROJECT_ROOT` to ensure inherited backend scripts can locate configurations and operate correctly across different platforms.
-    5.  Uses `runpy.run_path('scripts/main_gradio_app.py', run_name=\\\"__main__\\\")` to execute the main Gradio application script.
-*   **Note:** The notebook cell code is designed to be the primary entry point, preparing the environment for `scripts/main_gradio_app.py`.
+### 2.1. Platform Launcher (`notebook/AnxLight_Launcher_v0.0.5.ipynb`)
+*   **Purpose:** User's primary entry point (e.g., on Colab). Implements the v3 two-cell architecture.
+*   **Functionality (v3):**
+    1.  **Cell 1 (Pre-Flight Setup):** Clones/updates the `drf0rk/AnxLight` repository (main branch), changes CWD to repo root, then executes `scripts/pre_flight_setup.py`.
+    2.  **Cell 2 (Gradio UI & Launch):** Sets crucial environment variables (`PROJECT_ROOT`, `home_path`, `scr_path`, `settings_path`, `venv_path`, `PYTHONPATH`) and executes `scripts/main_gradio_app.py` using the Python interpreter from the VENV created by Cell 1.
+*   **Status:** Structure updated to v3 plan (SHA `ef26a601bf51...`).
 
-### 2.2. Main Gradio Application (`scripts/main_gradio_app.py`)
-*   **Purpose:** Defines and runs the entire Gradio user interface, collects user configurations, and orchestrates the backend processes, including preparing log directories and handling detailed logging.
-*   **Current UI Elements & Functionality (Setup & Asset Selection Tab):**
-    *   (UI elements as previously listed)
-    *   `Detailed Download Log Checkbox`: This checkbox will control the verbosity of logging both to the UI's live log and to persistent log files.
-*   (Event Handlers, Key Data Used, Recent Fix as previously listed)
+### 2.2. Versioning Script (`scripts/anxlight_version.py`)
+*   **Purpose:** Centralized source of truth for component versions within the AnxLight project.
+*   **Functionality (v3):** Defines Python constants for versions (e.g., `MAIN_GRADIO_APP_VERSION = "1.0.0"`, `PRE_FLIGHT_SETUP_PY_VERSION = "0.1.0"`, `ANXLIGHT_OVERALL_SYSTEM_VERSION = "3.0.0-alpha"`).
+*   **Status:** Created and updated for v3 (SHA `96023add48...`).
 
-### 2.3. Data Modules (`scripts/data/`)
-(As previously listed)
+### 2.3. Pre-Flight Setup Script (`scripts/pre_flight_setup.py`)
+*   **Purpose:** Handles all heavy, one-time setup tasks, executed by Cell 1 of the launcher notebook.
+*   **Functionality (v3 - v0.1.0):**
+    1.  Displays component versions (from `anxlight_version.py`).
+    2.  Creates/activates a Python Virtual Environment (VENV).
+    3.  Installs core Python dependencies (Gradio, pyngrok, huggingface-hub, etc.) into the VENV.
+    4.  Checks for and attempts to install supported tunneling clients.
+    5.  Installs all supported WebUIs by calling their respective setup scripts from `scripts/UIs/` (e.g., `A1111.py` - once refactored).
+*   **Status:** Initial version created for v3 (SHA `dd199d24...`).
 
-### 2.4. Inherited Backend (from `anxety-solo/sdAIgen`)
-(As previously listed, emphasizing reliance on env vars like `settings_path`)
+### 2.4. Main Gradio Application (`scripts/main_gradio_app.py`)
+*   **Purpose (v3 - v1.0.0):** Defines and runs the Gradio UI, manages session configuration, handles session-specific asset downloads, generates `anxlight_config.json`, and orchestrates `scripts/launch.py`.
+*   **Functionality (v3):**
+    1.  Imports versions from `anxlight_version.py`.
+    2.  Dynamically loads asset data (models, VAEs, ControlNets, LoRAs) from `scripts/data/sd15_data.py` or `scripts/data/sdxl_data.py` based on selected SD version.
+    3.  `get_asset_choices`: Populates UI selectors.
+    4.  `download_selected_asset`: Downloads user-selected assets for the current session using `modules/Manager.py` (via `download_url_to_path`) and `modules/webui_utils.py` (for paths).
+    5.  Generates `anxlight_config.json`.
+    6.  Calls `scripts/launch.py` for WebUI and tunnel startup.
+    7.  Streams logs to UI.
+*   **Status:** Refactored for v3 data handling and orchestration (SHA `6a6d6ef4...`). Relies on functional `Manager.py` and `webui_utils.py` for downloads.
 
-## 3. Key UI/UX Decisions & Features Implemented
-(As previously listed)
-*   **Logging Strategy (Planned):**
-    *   The \\\"Enable Detailed Download Log\\\" checkbox will gate verbose output.
-    *   If checked, `scripts/main_gradio_app.py` will create a session-specific log directory (e.g., `PROJECT_ROOT/logs/session_<timestamp>/`).
-    *   Backend script outputs (`downloading-en.py`, `launch.py`) will be streamed to the UI and also saved to separate files within this session log directory (e.g., `downloading.log`, `launch.log`).
-    *   If unchecked, only summary status/errors will go to UI, but errors will still be logged to files.
+### 2.5. Data Modules (`scripts/data/sd15_data.py`, `scripts/data/sdxl_data.py`)
+*   **Purpose:** Consolidated data sources for SD1.5 and SDXL assets respectively.
+*   **Functionality (v3):** Each file exports Python dictionaries (e.g., `sd15_model_data`, `sd15_vae_data`, `sd15_controlnet_data`, `sd15_lora_data`) containing asset metadata (display names, URLs, target filenames, inpainting flags).
+*   **Status:** Updated to include LoRA data. `scripts/data/lora_data.py` is now deprecated.
+    *   `sd15_data.py` SHA: `4145395e...`
+    *   `sdxl_data.py` SHA: `035041c9...`
+
+### 2.6. Inherited Backend (from `anxety-solo/sdAIgen`)
+*   **`scripts/launch.py`:** Inherited. Responsible for reading `anxlight_config.json`, starting the WebUI process, and initiating tunnels via `modules/TunnelHub.py`.
+*   **`modules/Manager.py` (SHA `42186db2...`):** Inherited, then refactored for v3.
+    *   Core download utility. V3 added `download_url_to_path(url, target_full_path, ...)` which accepts absolute paths, handles directory creation, and aims for clear boolean success/failure.
+    *   Retains `clean_url` (for HF, Civitai, GitHub URL processing) and multi-tool download logic (`aria2c`, `gdown`, `curl`). Handles `HF_TOKEN`, `CAI_TOKEN`.
+*   **`modules/webui_utils.py` (SHA `64030407...`):** Inherited, then refactored for v3.
+    *   Manages WebUI-specific paths. `_set_webui_paths` populates `anxlight_config.json` with directory structures.
+    *   V3 added `get_webui_asset_path(...)` (reads from config to provide full asset save paths) and `get_webui_installation_root(...)`.
+*   **`modules/json_utils.py`:** Inherited utility for JSON read/write operations, used for `anxlight_config.json`.
+*   **`modules/TunnelHub.py`:** Inherited. Manages various tunneling services.
+*   **`scripts/UIs/*.py` (e.g., `A1111.py`):** Inherited WebUI-specific installer scripts. **Crucially, these need refactoring to remove IPython dependencies to be callable by `scripts/pre_flight_setup.py`.**
+
+## 3. Key UI/UX Decisions & Features Implemented/Planned (v3)
+*   **Two-Cell Notebook Workflow:** Separates heavy setup (Cell 1) from interactive session launch (Cell 2).
+*   **Centralized Versioning:** Via `scripts/anxlight_version.py`.
+*   **Consolidated Data Modules:** Per SD version in `scripts/data/`.
+*   **Session-Specific Asset Downloads:** `main_gradio_app.py` only downloads what's needed for the current run.
+*   **Logging Strategy (v3 Plan):** Gradio UI to feature a "Download Session Logs" button. Detailed logs from `main_gradio_app.py` and backend scripts (like `launch.py`) are saved to a session-specific directory if "Detailed Session Log" is enabled.
 
 ## 4. Crucial Data Points & Information for Development
 
 ### 4.1. WebUI Default Arguments
-(As previously listed)
+(Content as in existing BrainDump.md - still relevant)
 
 ### 4.2. Theme Choices
-(As previously listed)
+(Content as in existing BrainDump.md - still relevant)
 
-### 4.3. Backend Configuration Parameters (Guidance for Interfacing)
-*   The original `anxety-solo/sdAIgen` project utilized a JSON configuration file to store user selections made via its IPython widget interface (`scripts/en/widgets-en.py`).
-*   The path to this JSON configuration file was determined by an environment variable, `settings_path`, typically defined during the execution of `scripts/setup.py` in the main Colab notebook. Other related environment variables like `home_path` (e.g., `/root/ANXETY`) and `scr_path` (e.g., path to the cloned repository scripts) were also set up similarly. These paths are crucial for multi-platform adaptability.
-*   The `scripts/en/widgets-en.py` script would then use `modules/json_utils.py` to read from and save to the file at `settings_path`, storing configurations typically under a top-level `\\\"WIDGETS\\\"` key and an `\\\"ENVIRONMENT\\\"` key.
-*   The backend scripts (`scripts/en/downloading-en.py`, `scripts/launch.py`) would subsequently read this same configuration file to perform their operations.
-*   The `SETTINGS_KEYS` list, identified from `scripts/en/widgets-en.py`, represents the keys used within the `\\\"WIDGETS\\\"` section of this JSON configuration structure:
-    ```python
-    SETTINGS_KEYS = [
-        'XL_models', 'model', 'model_num', 'inpainting_model', 'vae', 'vae_num',
-        'latest_webui', 'latest_extensions', 'check_custom_nodes_deps', 'change_webui', 'detailed_download', # 'detailed_download' here refers to original's log level, AnxLight reuses the flag for its own comprehensive logging.
-        'controlnet', 'controlnet_num', 'commit_hash',
-        'civitai_token', 'huggingface_token', 'zrok_token', 'ngrok_token', 'commandline_arguments', 'theme_accent',
-        'empowerment', 'empowerment_output',
-        'Model_url', 'Vae_url', 'LoRA_url', 'Embedding_url', 'Extensions_url', 'ADetailer_url',
-        'custom_file_urls'
-    ]
-    ```
-*   **AnxLight's Interfacing Strategy:** AnxLight will adopt a similar approach. Its `scripts/main_gradio_app.py` will collect user configurations from the Gradio UI and generate a JSON file (e.g., `anxlight_config.json` at the path defined by `os.environ['settings_path']`). This file will be structured to be compatible with the expectations of the inherited backend scripts, using `SETTINGS_KEYS` for the `\\\"WIDGETS\\\"` section and also creating an `\\\"ENVIRONMENT\\\"` section. The AnxLight platform launcher (e.g., `notebook/AnxLight_Launcher_v0.0.2.ipynb`) is responsible for setting up the `settings_path`, `home_path`, and `scr_path` environment variables appropriately for the target platform before `scripts/main_gradio_app.py` is run.
+### 4.3. Backend Configuration Parameters (`anxlight_config.json`)
+*   Still generated by `scripts/main_gradio_app.py` (path from `settings_path` env var).
+*   `SETTINGS_KEYS` list (from original `widgets-en.py`) remains a useful reference for keys expected by `scripts/launch.py` and other backend components. `main_gradio_app.py` populates these.
+*   The `ENVIRONMENT` section (with `home_path`, `scr_path`, etc.) is set up by the launcher notebook and used by scripts.
+*   The `UI_SELECTION` key (with `webui_choice`) is used by `main_gradio_app.py` and `webui_utils.py`.
+*   The `WEBUI` key is populated by `webui_utils._set_webui_paths()` with specific directory paths for the chosen WebUI, which `webui_utils.get_webui_asset_path()` then reads.
 
 ### 4.4. `file.txt` Download System (from Original Repo)
-(As previously listed)
+*   `modules/Manager.py` (`m_download` function) retains the ability to read a `.txt` file containing multiple URLs for batch downloading. This is less central to the Gradio UI flow but remains an underlying capability of `Manager.py`.
 
-## 5. Known Issues / Current Workarounds
-*   **[RESOLVED]** **Issue:** The `notebook/AnxLight_Launcher_v0.0.2.ipynb` was non-functional because its raw JSON source was formatted as a single line starting with a `#`, effectively commenting out the entire code cell.
-    *   **Resolution (SCIE #6):** The notebook file was updated with corrected JSON formatting. The `source` is now an array of strings (one per line), allowing the code to execute correctly in Colab and other Jupyter environments.
-(As previously listed, with successful SHA mismatch test noted)
+## 5. Known Issues / Current Workarounds (Post v3 Initial Implementation)
+*   **`scripts/UIs/A1111.py` (and other UI installers):** Requires refactoring to remove IPython-specific calls to be compatible with `scripts/pre_flight_setup.py`. This is a critical pending task.
+*   **`modules/Manager.py` `download_url_to_path`:** Needs thorough testing with all URL types and token scenarios. Its progress reporting for Gradio is a future enhancement.
+*   **Data Module Content:** Accuracy of URLs and filenames in `sd15_data.py` and `sdxl_data.py` is crucial. Consistent use of `inpainting: True` flag for models needed for UI filter. Handling of ControlNet model+YAML pairs in `download_selected_asset` needs to ensure both are fetched if listed.
 
-## 6. Immediate Next Steps (Detailed Development Plan)
+## 6. Immediate Next Steps (Post Initial v3 File Setup)
+**Note:** This section is revised for the current v3 context, superseding older "Next Steps" detailed in previous versions of this document. The primary focus is achieving full functionality of the v3 architecture. Refer to `AnxLight_Development_Plan.md` (root) for the broader roadmap.
 
-**Note:** The following steps are part of Phase 1 of the strategy outlined in `AnxLight_Development_Plan.md`. The multi-platform goal and detailed logging strategy should be incorporated from the outset.
-
-The primary focus is to make the \\\"Install, Download & Launch\\\" button functional by implementing configuration passing to the backend scripts (via AnxLight-generated `anxlight_config.json`) and backend script execution within `launch_anxlight_main_process` in `scripts/main_gradio_app.py`.
-
-### 6.1. Implement AnxLight Configuration Handling & Logging Setup
-
-**Context:** The original `anxety-solo/sdAIgen` project used a JSON file (path from `settings_path` env var) for configuration. AnxLight emulates this. The \\\"Enable Detailed Download Log\\\" checkbox will control UI and file logging verbosity.
-
-1.  **Platform-Agnostic Environment Variable Strategy (Launcher Responsibility):**
-    *   The platform launcher (e.g., `notebook/AnxLight_Launcher_v0.0.2.ipynb`) must define `PROJECT_ROOT`.
-    *   It must set `os.environ['home_path'] = PROJECT_ROOT` (or a dedicated `./runtime_env/` within `PROJECT_ROOT`).
-    *   It must set `os.environ['scr_path'] = PROJECT_ROOT`.
-    *   It must set `os.environ['settings_path'] = os.path.join(os.environ['home_path'], 'anxlight_config.json')`.
-    *   It must set `os.environ['venv_path'] = os.path.join(PROJECT_ROOT, 'venv')` (or platform-appropriate path).
-    *   This setup is crucial for backend scripts to find configurations and operate correctly across different platforms.
-
-2.  **Log Directory Setup (in `launch_anxlight_main_process`):**
-    *   At the beginning of `launch_anxlight_main_process` in `scripts/main_gradio_app.py`:
-        *   If `detailed_download_chk.value` is True:
-            *   Create a unique session log directory: `log_session_dir = os.path.join(PROJECT_ROOT, 'logs', f'session_{time.strftime(\\\"%Y%m%d-%H%M%S\\\")}')`.
-            *   `os.makedirs(log_session_dir, exist_ok=True)`.
-            *   Store `log_session_dir` for use by subprocess loggers.
-        *   Else: Set `log_session_dir = None`.
-
-3.  **Collect UI Data & Construct Configuration Dictionary (in `launch_anxlight_main_process`):**
-    *   Retrieve values from all Gradio inputs.
-    *   Create `widgets_data = {}` mapping Gradio inputs to `SETTINGS_KEYS`.
-    *   Create `environment_data = {}` with `env_name` (e.g., \\\"AnxLight_Gradio_Colab\\\"), `lang`, and paths from `os.environ`.
-    *   `anxlight_config = {\\\"WIDGETS\\\": widgets_data, \\\"ENVIRONMENT\\\": environment_data}`.
-
-4.  **Save AnxLight's JSON Configuration File (in `launch_anxlight_main_process`):**
-    *   `config_file_path = os.environ['settings_path']`.
-    *   `os.makedirs(os.path.dirname(config_file_path), exist_ok=True)`.
-    *   Save `anxlight_config` to `config_file_path` using `json.dump()`.\n    *   Log action to UI (e.g., \\\"Configuration saved to anxlight_config.json\\\").
-
-5.  **Adapt `update_current_webui` Call (in `launch_anxlight_main_process`):**
-    *   Call `modules.webui_utils.update_current_webui(webui_choice_dd.value)`. This function is expected to read `settings_path` and update the config file directly.
-
-### 6.2. Implement Backend Script Execution (in `launch_anxlight_main_process`)
-
-1.  **Define Script Paths:** (Using `os.environ['scr_path']`)
-    *   `downloading_script = os.path.join(os.environ['scr_path'], 'scripts', 'en', 'downloading-en.py')`
-    *   `launch_script = os.path.join(os.environ['scr_path'], 'scripts', 'launch.py')`
-
-2.  **Helper Function for Subprocess Execution & Logging:**
-    *   Create a helper function, e.g., `execute_backend_script(script_path, log_file_name, ui_log_prefix, detailed_logging_enabled, log_session_dir)`:
-        *   Takes script path, base name for its log file, UI prefix, detailed log flag, and session log directory.
-        *   Uses `subprocess.Popen` with `env=os.environ`.
-        *   If `detailed_logging_enabled` and `log_session_dir` is not None:
-            *   Opens `os.path.join(log_session_dir, log_file_name)` in append mode.
-            *   Streams all `stdout`/`stderr` lines to UI (with prefix) AND writes them to the log file.
-        *   Else (summary logging):
-            *   Streams selected status updates or just final status/errors to UI.
-            *   Still logs full `stderr` to a generic error log or the specific file if `log_session_dir` exists.
-        *   Waits for process completion and returns `process.returncode`.
-
-3.  **Execute `downloading-en.py`:**
-    *   Call the helper function: `ret_code = execute_backend_script(downloading_script, \\\"downloading.log\\\", \\\"[Downloader]\\\", detailed_download_chk.value, log_session_dir_from_step_6_1_2)`.
-    *   If `ret_code != 0`, handle error and yield message to UI, then return.
-
-4.  **Execute `launch.py` (if download successful):**
-    *   Call the helper function: `execute_backend_script(launch_script, \\\"launch.log\\\", \\\"[Launcher]\\\", detailed_download_chk.value, log_session_dir_from_step_6_1_2)`.
-
-This detailed breakdown for Section 6 should provide excellent guidance for the next coding phase, incorporating the multi-platform and detailed logging requirements.
+1.  **Refactor `scripts/UIs/A1111.py`:**
+    *   Remove IPython dependencies (`get_ipython().system`, `!`).
+    *   Replace with standard `subprocess.run()` calls.
+    *   Ensure it can be executed as a standalone Python script by `scripts/pre_flight_setup.py` to install A1111 WebUI correctly into the VENV.
+2.  **Test `scripts/pre_flight_setup.py`:**
+    *   Execute via Cell 1 of `notebook/AnxLight_Launcher_v0.0.5.ipynb`.
+    *   Verify VENV creation, dependency installation, and successful installation of at least one WebUI (e.g., A1111 after its refactor).
+3.  **Thoroughly Test `modules/Manager.py`'s `download_url_to_path`:**
+    *   Create test cases or use `main_gradio_app.py` to test downloads of various asset types from different sources (HTTP, HF, Civitai), ensuring token usage and filename handling (especially for ControlNet YAMLs if `main_gradio_app.py` lists them) work correctly.
+    *   Confirm clear True/False return values.
+4.  **Full End-to-End Test of `AnxLight_Launcher_v0.0.5.ipynb`:**
+    *   Run Cell 1 (Pre-Flight Setup).
+    *   Run Cell 2 (Launch Gradio App).
+    *   In Gradio UI: Select WebUI, SD Version, and various assets (models, VAEs, LoRAs, ControlNets).
+    *   Click "Download Assets & Launch WebUI".
+    *   Verify:
+        *   Correct assets are downloaded by `main_gradio_app.py` (via `Manager.py`) to the correct locations (determined by `webui_utils.py`).
+        *   `anxlight_config.json` is generated correctly.
+        *   `scripts/launch.py` starts the WebUI and tunnel successfully.
+5.  **Implement "Download Session Logs" Feature:** Add the button to `main_gradio_app.py` and the backend logic to zip and serve logs from the `log_session_dir`.
+6.  **Data Module Accuracy:** Continuously verify and update URLs, filenames, and metadata in `scripts/data/sd15_data.py` and `scripts/data/sdxl_data.py`.
 
 ## 7. Discussed Future Enhancements
-(Content as before, with understanding that these are post-Phase 1/2 as per `AnxLight_Development_Plan.md`)
+(Content as in existing BrainDump.md - still relevant for post-v3 stability)
 
 ## 8. Project Documentation
-(Content as before, now also implicitly includes `AnxLight_Development_Plan.md`)
-
-This summary should provide a solid foundation for any future work or for a new assistant instance.
+(Content as in existing BrainDump.md - needs to emphasize v3 as current and ensure all local/repo docs are synced)
