@@ -8,21 +8,19 @@ import time
 import json
 from pathlib import Path
 import traceback
+import importlib # For dynamic imports
 
 # --- Robust Path Setup ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
 MODULES_PATH = os.path.join(PROJECT_ROOT, 'modules')
 SCRIPTS_PATH = os.path.join(PROJECT_ROOT, 'scripts')
+DATA_MODULE_PATH = os.path.join(SCRIPTS_PATH, 'data')
 
-# Ensure paths are set up early for anxlight_version import
-sys.path.insert(0, SCRIPTS_PATH) 
-if SCRIPT_DIR not in sys.path: 
-    sys.path.insert(0, SCRIPT_DIR)
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(1, PROJECT_ROOT) 
-if MODULES_PATH not in sys.path: 
-    sys.path.insert(0, MODULES_PATH)
+# Ensure paths are set up early
+for p in [DATA_MODULE_PATH, SCRIPTS_PATH, SCRIPT_DIR, PROJECT_ROOT, MODULES_PATH]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
 try:
     from anxlight_version import (
@@ -40,129 +38,132 @@ except ImportError as e_ver:
     LAUNCH_PY_VERSION = "unknown" 
     PRE_FLIGHT_SETUP_PY_VERSION = "unknown"
 
-class _DummyDataModule:
-    sd15_model_data = {"ERROR: Module Load Failed": {}}
-    sd15_vae_data = {}
-    sd15_controlnet_data = {}
-    sdxl_model_data = {"ERROR: Module Load Failed": {}}
-    sdxl_vae_data = {}
-    sdxl_controlnet_data = {}
-
-class _DummyLoraDataModule:
-    lora_data = {"sd15_loras": {}, "sdxl_loras": {}}
-
+# --- Dummy classes for critical module fallbacks ---
 class _DummyWebUIUtilsModule:
-    def update_current_webui(self, webui_name):
-        print(f"[_DummyWebUIUtilsModule] update_current_webui called for {webui_name} - REAL MODULE NOT LOADED")
-    def get_webui_asset_path(self, webui_name, asset_type, asset_filename=""): 
-        print(f"[_DummyWebUIUtilsModule] get_webui_asset_path for {webui_name}, {asset_type} - REAL MODULE NOT LOADED")
-        return os.path.join(PROJECT_ROOT, "models", asset_type, asset_filename)
-    def get_webui_installation_root(self, webui_name: str) -> str: # Added dummy method
-        print(f"[_DummyWebUIUtilsModule] get_webui_installation_root for {webui_name} - REAL MODULE NOT LOADED")
-        return os.path.join(PROJECT_ROOT, webui_name)
+    def update_current_webui(self, webui_name): print(f"[_DummyWebUIUtilsModule] update_current_webui for {webui_name}")
+    def get_webui_asset_path(self, webui_name, asset_type, asset_filename=""): return str(Path(PROJECT_ROOT) / "models" / asset_type / asset_filename)
+    def get_webui_installation_root(self, webui_name: str) -> str: return str(Path(PROJECT_ROOT) / webui_name)
 
-
-class _DummyManagerModule: # Dummy for Manager.py
+class _DummyManagerModule:
     def download_file(self, url, filename, log=False, **kwargs):
-        print(f"[_DummyManagerModule] download_file called for {url} to {filename} - REAL MODULE NOT LOADED")
-        # Simulate a None return if an error might occur, or True if it's supposed to work
-        if "fail" in filename: return None 
-        return True # Simulate success for dummy
+        print(f"[_DummyManagerModule] download_file for {url} to {filename}")
+        return not ("fail" in filename) # Simulate success unless "fail" in name
 
-sd15_data = _DummyDataModule()
-sdxl_data = _DummyDataModule()
-lora_data = _DummyLoraDataModule()
+# Initialize placeholders for critical modules
 json_utils = None
-webui_utils = _DummyWebUIUtilsModule()
-manager_utils = _DummyManagerModule() # Initialize with dummy
+webui_utils = _DummyWebUIUtilsModule() # Instantiate dummy
+manager_utils = _DummyManagerModule()  # Instantiate dummy
 
-print(f"[DEBUG main_gradio_app] SCRIPT_DIR: {SCRIPT_DIR}")
-print(f"[DEBUG main_gradio_app] PROJECT_ROOT: {PROJECT_ROOT}")
-print(f"[DEBUG main_gradio_app] MODULES_PATH: {MODULES_PATH}")
-print(f"[DEBUG main_gradio_app] Initial sys.path: {sys.path}")
+print(f"[DEBUG] Initial sys.path: {sys.path}")
 
 try:
-    DATA_MODULE_PATH = os.path.join(SCRIPTS_PATH, 'data')
-    if DATA_MODULE_PATH not in sys.path:
-        sys.path.insert(0, DATA_MODULE_PATH)
-    print(f"[DEBUG main_gradio_app] Attempting data module import from: {DATA_MODULE_PATH}, sys.path: {sys.path}")
-
-    from sd15_data import sd15_model_data, sd15_vae_data, sd15_controlnet_data
-    sd15_data.sd15_model_data = sd15_model_data
-    sd15_data.sd15_vae_data = sd15_vae_data
-    sd15_data.sd15_controlnet_data = sd15_controlnet_data
-
-    from sdxl_data import sdxl_model_data, sdxl_vae_data, sdxl_controlnet_data
-    sdxl_data.sdxl_model_data = sdxl_model_data
-    sdxl_data.sdxl_vae_data = sdxl_vae_data
-    sdxl_data.sdxl_controlnet_data = sdxl_controlnet_data
-    
-    from lora_data import lora_data as lora_data_dict
-    lora_data.lora_data = lora_data_dict
-    print("Successfully imported real data modules from scripts/data/.")
-
-except ImportError as e:
-    print(f"Warning: Error importing data modules from scripts/data/: {e}.")
-    try:
-        print("[DEBUG main_gradio_app] Retrying data module import from scripts/ directly.")
-        if DATA_MODULE_PATH in sys.path: sys.path.remove(DATA_MODULE_PATH)
-        if SCRIPT_DIR not in sys.path: sys.path.insert(0, SCRIPT_DIR)
-        
-        from _models_data import sd15_model_data, sd15_vae_data, sd15_controlnet_data 
-        sd15_data.sd15_model_data = sd15_model_data
-        sd15_data.sd15_vae_data = sd15_vae_data
-        sd15_data.sd15_controlnet_data = sd15_controlnet_data
-
-        from _xl_models_data import sdxl_model_data, sdxl_vae_data, sdxl_controlnet_data 
-        sdxl_data.sdxl_model_data = sdxl_model_data
-        sdxl_data.sdxl_vae_data = sdxl_vae_data
-        sdxl_data.sdxl_controlnet_data = sdxl_controlnet_data
-        print("Successfully imported real data modules from scripts/ (fallback).")
-    except ImportError as e_fallback:
-        print(f"FATAL: Error importing data modules (fallback from scripts/ failed): {e_fallback}")
-        print("Using dummy data. Asset selection will be limited/non-functional.")
-
-try:
-    from modules import json_utils as real_json_utils, webui_utils as real_webui_utils, Manager as RealManagerModule
+    # Import critical utility modules
+    from modules import json_utils as real_json_utils
     json_utils = real_json_utils
-    webui_utils = real_webui_utils() # Instantiate if it's a class
-    manager_utils = RealManagerModule # Assign the module itself, or an instance if Manager is a class
-    print("Successfully imported real backend utility modules (json_utils, webui_utils, Manager).")
-except ImportError as e:
-    print(f"Warning: Error importing backend utility modules: {e}. Using dummy placeholders where possible.")
-    if not isinstance(webui_utils, _DummyWebUIUtilsModule): webui_utils = _DummyWebUIUtilsModule()
-    if not isinstance(manager_utils, _DummyManagerModule): manager_utils = _DummyManagerModule()
-    # json_utils remains None if import fails, critical failure handled in launch_anxlight_main_process
+    print("Successfully imported real json_utils.")
 
+    from modules import webui_utils as real_webui_utils_module
+    webui_utils = real_webui_utils_module # Assign module directly, assuming functions are module-level
+    print("Successfully imported real webui_utils module.")
+    
+    from modules import Manager as RealManagerModule
+    manager_utils = RealManagerModule # Assign module directly
+    print("Successfully imported real Manager module.")
+
+except ImportError as e_utils:
+    print(f"Warning: Error importing one or more critical utility modules (json_utils, webui_utils, Manager): {e_utils}. Using dummies where possible.")
+    # Dummies are already initialized. json_utils being None is a critical failure handled later.
+
+# --- UI Lists & Data ---
 WEBUI_CHOICES = ["A1111", "ComfyUI", "Forge"] 
 SD_VERSION_CHOICES = ["SD1.5", "SDXL"]
 THEME_CHOICES = ["Default", "anxety", "blue", "green", "peach", "pink", "red", "yellow"] 
 INPAINTING_FILTER_CHOICES = ["Show All Models", "Inpainting Models Only", "No Inpainting Models"]
 WEBUI_DEFAULT_ARGS = {'A1111': "--xformers --no-half-vae", 'ComfyUI': "--preview-method auto", 'Forge': "--xformers --cuda-stream --pin-shared-memory"}
-SETTINGS_KEYS = [
+SETTINGS_KEYS = [ # Reviewed for v3 relevance
     'XL_models', 'model', 'model_num', 'inpainting_model', 'vae', 'vae_num',
     'check_custom_nodes_deps', 'change_webui', 'detailed_download',
     'controlnet', 'controlnet_num', 'commit_hash', 
     'civitai_token', 'huggingface_token', 'zrok_token', 'ngrok_token', 'commandline_arguments', 'theme_accent',
+    'anxlight_selected_models_list', 'anxlight_selected_vaes_list', 
+    'anxlight_selected_controlnets_list', 'anxlight_selected_loras_list'
 ]
 
+# Global dictionaries to hold loaded asset data
+# These will be populated by get_asset_choices based on sd_version
+current_model_data = {}
+current_vae_data = {}
+current_controlnet_data = {}
+current_lora_data = {}
+
+def load_data_for_sd_version(sd_version):
+    """Loads model, VAE, ControlNet, and LoRA data for the selected SD version."""
+    global current_model_data, current_vae_data, current_controlnet_data, current_lora_data
+    data_loaded_successfully = True
+    try:
+        if sd_version == "SD1.5":
+            data_module = importlib.import_module("sd15_data")
+            current_model_data = getattr(data_module, "sd15_model_data", {})
+            current_vae_data = getattr(data_module, "sd15_vae_data", {})
+            current_controlnet_data = getattr(data_module, "sd15_controlnet_data", {})
+            current_lora_data = getattr(data_module, "sd15_lora_data", {})
+        elif sd_version == "SDXL":
+            data_module = importlib.import_module("sdxl_data")
+            current_model_data = getattr(data_module, "sdxl_model_data", {})
+            current_vae_data = getattr(data_module, "sdxl_vae_data", {})
+            current_controlnet_data = getattr(data_module, "sdxl_controlnet_data", {})
+            current_lora_data = getattr(data_module, "sdxl_lora_data", {})
+        else:
+            current_model_data, current_vae_data, current_controlnet_data, current_lora_data = {}, {}, {}, {}
+            data_loaded_successfully = False
+        
+        if not (current_model_data or current_vae_data or current_controlnet_data or current_lora_data):
+            print(f"Warning: No data loaded for SD version {sd_version}. Check data files.")
+            data_loaded_successfully = False
+            # Ensure they are empty dicts if load failed to prevent errors later
+            current_model_data, current_vae_data, current_controlnet_data, current_lora_data = {}, {}, {}, {}
+
+
+    except ImportError as e:
+        print(f"FATAL: Could not import data module for SD version {sd_version}: {e}")
+        current_model_data, current_vae_data, current_controlnet_data, current_lora_data = {}, {}, {}, {}
+        data_loaded_successfully = False
+    
+    if data_loaded_successfully:
+        print(f"Successfully loaded data for {sd_version}.")
+    else:
+        print(f"Failed to load complete data for {sd_version}.")
+
+
 def get_asset_choices(sd_version, inpainting_filter_mode="Show All Models"):
-    models_data_source = sd15_data.sd15_model_data if sd_version == "SD1.5" else sdxl_data.sdxl_model_data
-    filtered_models_keys = [name for name, data in models_data_source.items() if name != "ERROR: Module Load Failed" and (
-                            (inpainting_filter_mode == "Show All Models") or
-                            (inpainting_filter_mode == "Inpainting Models Only" and data.get("inpainting", False)) or
-                            (inpainting_filter_mode == "No Inpainting Models" and not data.get("inpainting", False)))]
-    models = filtered_models_keys
-    if sd_version == "SD1.5":
-        vaes = [name for name in sd15_data.sd15_vae_data.keys() if name != "ERROR: Module Load Failed"]
-        controlnets = [name for name in sd15_data.sd15_controlnet_data.keys() if name != "ERROR: Module Load Failed"]
-        loras = [name for name in lora_data.lora_data.get("sd15_loras", {}).keys() if name != "ERROR: Module Load Failed"]
-    elif sd_version == "SDXL":
-        vaes = [name for name in sdxl_data.sdxl_vae_data.keys() if name != "ERROR: Module Load Failed"]
-        controlnets = [name for name in sdxl_data.sdxl_controlnet_data.keys() if name != "ERROR: Module Load Failed"]
-        loras = [name for name in lora_data.lora_data.get("sdxl_loras", {}).keys() if name != "ERROR: Module Load Failed"]
-    else: vaes, controlnets, loras = [], [], []
+    load_data_for_sd_version(sd_version) # Ensure correct data is loaded globally
+
+    # Models
+    models = []
+    if current_model_data:
+        for name, data_val in current_model_data.items():
+            is_inpainting_model = False
+            if isinstance(data_val, dict): # Expected structure: {"url": ..., "name": ..., "inpainting": True/False}
+                is_inpainting_model = data_val.get("inpainting", "inpainting" in name.lower() or "inpaint" in name.lower())
+            elif isinstance(data_val, list) and data_val: # Original list structure
+                 # Simplistic check on first item's name for inpainting if no explicit flag
+                is_inpainting_model = "inpainting" in data_val[0].get("name","").lower() or "inpaint" in data_val[0].get("name","").lower()
+
+            if (inpainting_filter_mode == "Show All Models") or \
+               (inpainting_filter_mode == "Inpainting Models Only" and is_inpainting_model) or \
+               (inpainting_filter_mode == "No Inpainting Models" and not is_inpainting_model):
+                models.append(name)
+    
+    vaes = list(current_vae_data.keys()) if current_vae_data else []
+    controlnets = list(current_controlnet_data.keys()) if current_controlnet_data else []
+    loras = list(current_lora_data.keys()) if current_lora_data else []
+    
     return models, vaes, controlnets, loras
+
+# update_all_ui_elements, save_keys_to_file_fn, load_keys_from_file_fn (largely same, ensure they use global current_theme_value if needed)
+# _execute_backend_script (largely same)
+# download_selected_asset (needs to use current_model_data, etc.)
+# launch_anxlight_main_process (largely same orchestration, but asset download calls new download_selected_asset)
 
 def update_all_ui_elements(sd_version_selected, inpainting_filter_selected, webui_selected):
     models, vaes, controlnets, loras = get_asset_choices(sd_version_selected, inpainting_filter_selected)
@@ -172,10 +173,10 @@ def update_all_ui_elements(sd_version_selected, inpainting_filter_selected, webu
     check_nodes_visible = is_comfy
     theme_accent_visible = not is_comfy 
     current_theme_value = THEME_CHOICES[0] 
-    return (gr.update(choices=models, value=[] if models else None), 
-            gr.update(choices=vaes, value=[] if vaes else None), 
-            gr.update(choices=controlnets, value=[] if controlnets else None),
-            gr.update(choices=loras, value=[] if loras else None), 
+    return (gr.update(choices=models, value=[] if models else None, interactive=bool(models)), 
+            gr.update(choices=vaes, value=[] if vaes else None, interactive=bool(vaes)), 
+            gr.update(choices=controlnets, value=[] if controlnets else None, interactive=bool(controlnets)),
+            gr.update(choices=loras, value=[] if loras else None, interactive=bool(loras)), 
             gr.update(value=default_args), 
             gr.update(visible=update_ext_visible),
             gr.update(visible=check_nodes_visible), 
@@ -242,74 +243,93 @@ def _execute_backend_script(script_path, script_version, log_file_name_base, ui_
     yield "SCRIPT_EXECUTION_SUCCESS" if script_success else "SCRIPT_EXECUTION_FAILURE"
 
 def download_selected_asset(asset_name, asset_type, sd_version, webui_choice, log_output_list, hf_token_val, civitai_token_val):
-    if not manager_utils or isinstance(manager_utils, _DummyManagerModule):
-        log_output_list.append(f"Warning: Manager module not fully loaded. Cannot download {asset_type} '{asset_name}'.\n"); return False
-    if not webui_utils or isinstance(webui_utils, _DummyWebUIUtilsModule):
-        log_output_list.append(f"Warning: WebUIUtils module not fully loaded. Cannot determine path for {asset_type} '{asset_name}'.\n"); return False
+    global current_model_data, current_vae_data, current_controlnet_data, current_lora_data # Use globally loaded data
 
-    data_source = None
-    if asset_type == "model": data_source = sd15_data.sd15_model_data if sd_version == "SD1.5" else sdxl_data.sdxl_model_data
-    elif asset_type == "vae": data_source = sd15_data.sd15_vae_data if sd_version == "SD1.5" else sdxl_data.sdxl_vae_data
-    elif asset_type == "lora": data_source = lora_data.lora_data.get("sd15_loras" if sd_version == "SD1.5" else "sdxl_loras", {})
-    elif asset_type == "controlnet": data_source = sd15_data.sd15_controlnet_data if sd_version == "SD1.5" else sdxl_data.sdxl_controlnet_data
+    if isinstance(manager_utils, _DummyManagerModule):
+        log_output_list.append(f"Warning: Manager module not fully loaded (dummy). Cannot download {asset_type} '{asset_name}'.\n"); return False
+    if isinstance(webui_utils, _DummyWebUIUtilsModule): # Check if it's the dummy instance
+        log_output_list.append(f"Warning: WebUIUtils module not fully loaded (dummy). Cannot determine path for {asset_type} '{asset_name}'.\n"); return False
+
+    data_source_map = {
+        "model": current_model_data, "vae": current_vae_data,
+        "controlnet": current_controlnet_data, "lora": current_lora_data
+    }
+    data_source = data_source_map.get(asset_type)
     
     if not data_source or asset_name not in data_source:
-        log_output_list.append(f"Warning: Metadata for {asset_type} '{asset_name}' not found. Cannot download.\n"); return False
+        log_output_list.append(f"Warning: Metadata for {asset_type} '{asset_name}' not found in loaded data. Cannot download.\n"); return False
 
-    asset_info = data_source[asset_name]
-    download_url = asset_info.get("url")
-    filename_in_repo = asset_info.get("filename") # This is the filename as it's known on the source/repo
-    
-    if not download_url or not filename_in_repo:
-        log_output_list.append(f"Warning: Download URL/filename missing for {asset_type} '{asset_name}'.\n"); return False
+    asset_info_list = data_source[asset_name] # This is now a list of file dicts
+    if not isinstance(asset_info_list, list): # Ensure it's a list
+        asset_info_list = [asset_info_list] # Wrap if it's a single dict (for old model/vae structure)
 
-    # Use filename_in_repo as the target filename for simplicity unless data provides a 'save_as'
-    target_filename = asset_info.get("save_as", filename_in_repo)
-    
-    # asset_type_plural for get_webui_asset_path
-    asset_type_plural_map = {"model": "models", "vae": "vaes", "lora": "loras", "controlnet": "controlnet"}
-    path_key_for_webui_utils = asset_type_plural_map.get(asset_type, asset_type) # Fallback to asset_type if not in map
-
-    target_path_full_str = webui_utils.get_webui_asset_path(webui_choice, path_key_for_webui_utils, target_filename)
-    if not target_path_full_str:
-        log_output_list.append(f"Error: Could not determine target path for {asset_type} '{asset_name}'. Download aborted.\n"); return False
-    
-    target_path_full = Path(target_path_full_str)
-    target_directory = target_path_full.parent
-    
-    log_output_list.append(f"Preparing to download {asset_type} '{asset_name}' from {download_url} to {target_path_full}...\n")
-    yield "".join(log_output_list)
-    
-    try: os.makedirs(target_directory, exist_ok=True)
-    except Exception as e_mkdir:
-        log_output_list.append(f"Error creating directory {target_directory}: {e_mkdir}.\n"); return False
-
-    original_cwd = os.getcwd()
-    success = False
-    try:
-        log_output_list.append(f"Changing CWD to: {target_directory} for downloading '{target_filename}'\n"); yield "".join(log_output_list)
-        os.chdir(target_directory)
-
-        # Manager.py's download_file uses its internally sourced HF_TOKEN/CAI_TOKEN.
-        # It expects filename to be just the name, not full path, as it saves to CWD.
-        manager_call_result = manager_utils.download_file(url=download_url, filename=target_filename, log=True)
+    overall_success_for_asset_group = True
+    for file_info in asset_info_list:
+        download_url = file_info.get("url")
+        # Derive filename from 'name' key, or from URL if 'name' is missing
+        filename_from_data = file_info.get("name")
+        if not filename_from_data and download_url:
+            try:
+                filename_from_data = Path(urlparse(download_url).path).name
+                if not filename_from_data: # if path ends in /
+                    log_output_list.append(f"Warning: Could not derive filename from URL '{download_url}' for {asset_name}. Skipping this file.\n")
+                    yield "".join(log_output_list)
+                    overall_success_for_asset_group = False
+                    continue
+            except Exception as e_fn:
+                log_output_list.append(f"Warning: Error deriving filename from URL '{download_url}': {e_fn}. Skipping this file.\n")
+                yield "".join(log_output_list)
+                overall_success_for_asset_group = False
+                continue
+        elif not download_url:
+             log_output_list.append(f"Warning: Download URL missing for an item in {asset_type} '{asset_name}'. Skipping this file.\n")
+             yield "".join(log_output_list)
+             overall_success_for_asset_group = False
+             continue
         
-        # Check file existence as primary success indicator
-        if Path(target_filename).exists(): # Check relative to new CWD (target_directory)
-            success = True
-            log_output_list.append(f"Successfully downloaded {asset_type} '{asset_name}' to '{target_path_full}'. File found.\n")
-        elif manager_call_result is None: # Error likely occurred in Manager.py
-            log_output_list.append(f"Download attempt for '{asset_name}' (Manager) returned None. File not found. Check Manager logs.\n")
-        else: # Manager returned something (e.g. False from a direct check) or file just doesn't exist
-            log_output_list.append(f"Download of {asset_type} '{asset_name}' did not result in a found file at '{target_filename}'. Manager status: {manager_call_result}.\n")
+        target_filename = filename_from_data # Use derived/provided name
+
+        asset_type_plural_map = {"model": "models", "vae": "vaes", "lora": "loras", "controlnet": "controlnet"}
+        path_key_for_webui_utils = asset_type_plural_map.get(asset_type, asset_type)
+        target_path_full_str = webui_utils.get_webui_asset_path(webui_choice, path_key_for_webui_utils, target_filename)
+        
+        if not target_path_full_str:
+            log_output_list.append(f"Error: Could not determine target path for {asset_type} '{target_filename}'. Download aborted for this file.\n")
+            overall_success_for_asset_group = False; continue
+        
+        target_path_full = Path(target_path_full_str); target_directory = target_path_full.parent
+        log_output_list.append(f"Preparing to download {asset_type} '{target_filename}' (part of '{asset_name}') from {download_url} to {target_path_full}...\n")
+        yield "".join(log_output_list)
+        try: os.makedirs(target_directory, exist_ok=True)
+        except Exception as e_mkdir:
+            log_output_list.append(f"Error creating directory {target_directory}: {e_mkdir}.\n"); overall_success_for_asset_group = False; continue
+
+        original_cwd = os.getcwd(); file_download_success = False
+        try:
+            log_output_list.append(f"Changing CWD to: {target_directory} for downloading '{target_filename}'\n"); yield "".join(log_output_list)
+            os.chdir(target_directory)
+            # Pass tokens to Manager.py if its download_file is adapted to take them, or rely on its internal constants
+            manager_call_result = manager_utils.download_file(url=download_url, filename=target_filename, log=True, hf_token=hf_token_val) # Pass hf_token
             
-    except Exception as e_dl_wrapper:
-        log_output_list.append(f"Exception during download process for '{asset_name}': {e_dl_wrapper}\nTraceback: {traceback.format_exc()}\n")
-    finally:
-        os.chdir(original_cwd)
-        log_output_list.append(f"Restored CWD to: {original_cwd}\n")
+            if Path(target_filename).exists():
+                file_download_success = True
+                log_output_list.append(f"Successfully downloaded '{target_filename}'.\n")
+            elif manager_call_result is None: log_output_list.append(f"Manager.py returned None for '{target_filename}'. File not found.\n")
+            else: log_output_list.append(f"Download of '{target_filename}' did not result in a found file. Manager status: {manager_call_result}.\n")
+        except Exception as e_dl_wrapper:
+            log_output_list.append(f"Exception during download process for '{target_filename}': {e_dl_wrapper}\nTraceback: {traceback.format_exc()}\n")
+        finally:
+            os.chdir(original_cwd)
+            log_output_list.append(f"Restored CWD to: {original_cwd}\n") # Moved yield to after CWD restoration
+            yield "".join(log_output_list) # Ensure UI gets this CWD restoration message too
+        
+        if not file_download_success: overall_success_for_asset_group = False
     
-    return success
+    return overall_success_for_asset_group
+
+# launch_anxlight_main_process and UI definition follow, mostly unchanged from SCIE #7 refactor,
+# but ensuring that the new global data dicts (current_model_data etc.) are used by download_selected_asset indirectly.
+# The primary changes are in load_data_for_sd_version, get_asset_choices, and download_selected_asset.
 
 def launch_anxlight_main_process(
     webui_choice, sd_version, inpainting_models_filter_val,
@@ -322,9 +342,11 @@ def launch_anxlight_main_process(
     log_output_list.append(f"Pre-Flight Setup Script Version (expected by this app): v{PRE_FLIGHT_SETUP_PY_VERSION}\n"); yield "".join(log_output_list)
 
     if json_utils is None: log_output_list.append("FATAL: json_utils module not loaded.\n"); yield "".join(log_output_list); return
-    if isinstance(webui_utils, _DummyWebUIUtilsModule): log_output_list.append("Warning: webui_utils module not fully loaded.\n")
-    if isinstance(manager_utils, _DummyManagerModule): log_output_list.append("Warning: Manager module not fully loaded. Asset downloads will use dummy.\n")
+    if isinstance(webui_utils, _DummyWebUIUtilsModule): log_output_list.append("Warning: webui_utils module not fully loaded (dummy).\n")
+    if isinstance(manager_utils, _DummyManagerModule): log_output_list.append("Warning: Manager module not fully loaded (dummy). Asset downloads may fail or use dummy.\n")
     
+    load_data_for_sd_version(sd_version) # Ensure data for the current SD version is loaded into globals
+
     local_project_root = PROJECT_ROOT; log_output_list.append(f"Project Root: {local_project_root}\n")
     log_session_dir = None
     if detailed_download_val:
@@ -337,13 +359,11 @@ def launch_anxlight_main_process(
 
     log_output_list.append(f"\n--- Step 1: Verifying WebUI '{webui_choice}' Installation ---\n")
     log_output_list.append(f"NOTE: WebUI installation is handled by 'scripts/pre_flight_setup.py'. Assuming '{webui_choice}' is installed.\n")
-    # Optional: Verify WebUI root path existence
-    if webui_utils and not isinstance(webui_utils, _DummyWebUIUtilsModule):
-        webui_root = webui_utils.get_webui_installation_root(webui_choice)
-        if not webui_root or not Path(webui_root).exists():
-            log_output_list.append(f"CRITICAL WARNING: Installation directory for '{webui_choice}' not found at '{webui_root}'. Pre-flight setup may be needed or path is incorrect.\n")
-        else:
-            log_output_list.append(f"Verified installation directory for '{webui_choice}' at '{webui_root}'.\n")
+    if not isinstance(webui_utils, _DummyWebUIUtilsModule): # Only check if real util is loaded
+        webui_root_path_str = webui_utils.get_webui_installation_root(webui_choice)
+        if not webui_root_path_str or not Path(webui_root_path_str).exists():
+            log_output_list.append(f"CRITICAL WARNING: Installation directory for '{webui_choice}' not found at '{webui_root_path_str}'. Pre-flight setup may be needed or path is incorrect.\n")
+        else: log_output_list.append(f"Verified installation directory for '{webui_choice}' at '{webui_root_path_str}'.\n")
     yield "".join(log_output_list)
 
     log_output_list.append(f"\n--- Step 2: Downloading Selected Session Assets ---\n"); yield "".join(log_output_list)
@@ -355,8 +375,8 @@ def launch_anxlight_main_process(
                 if not download_selected_asset(asset_name, asset_type, sd_version, webui_choice, log_output_list, huggingface_token_val, civitai_token_val):
                     overall_asset_download_success = False 
                 yield "".join(log_output_list) 
-        else: log_output_list.append(f"No {asset_type}s selected.\n"); yield "".join(log_output_list)
-    if not overall_asset_download_success: log_output_list.append("Warning: One or more assets failed to download.\n")
+        else: log_output_list.append(f"No {asset_type}s selected for download.\n"); yield "".join(log_output_list)
+    if not overall_asset_download_success: log_output_list.append("Warning: One or more assets may have failed to download. Check logs above.\n")
     yield "".join(log_output_list)
 
     log_output_list.append(f"\n--- Step 3: Generating Configuration File ---\n"); widgets_data = {}
@@ -364,7 +384,7 @@ def launch_anxlight_main_process(
         widgets_data.update({
             'XL_models': (sd_version == "SDXL"), 'model': selected_models[0] if selected_models else "none",
             'model_num': ",".join(selected_models) if selected_models else "",
-            'inpainting_model': (inpainting_models_filter_val == "Inpainting Models Only"),
+            'inpainting_model': (inpainting_models_filter_val == "Inpainting Models Only"), # This flag might need to come from model metadata
             'vae': selected_vaes[0] if selected_vaes else "none", 'vae_num': ",".join(selected_vaes) if selected_vaes else "",
             'latest_webui': update_webui_val, 'latest_extensions': update_extensions_val,
             'check_custom_nodes_deps': check_custom_nodes_val, 'change_webui': webui_choice,
@@ -376,15 +396,13 @@ def launch_anxlight_main_process(
             'ngrok_token': ngrok_token_val or "", 
             'commandline_arguments': custom_args_val or WEBUI_DEFAULT_ARGS.get(webui_choice, ""),
             'theme_accent': theme_accent_val,
-            'anxlight_selected_models_list': selected_models or [], 
-            'anxlight_selected_vaes_list': selected_vaes or [],
-            'anxlight_selected_controlnets_list': selected_controlnets or [],
-            'anxlight_selected_loras_list': selected_loras or []
+            'anxlight_selected_models_list': selected_models or [], 'anxlight_selected_vaes_list': selected_vaes or [],
+            'anxlight_selected_controlnets_list': selected_controlnets or [], 'anxlight_selected_loras_list': selected_loras or []
         })
         environment_data = {'env_name': "Google Colab" if 'COLAB_GPU' in os.environ else "AnxLight_Generic_Platform", 'lang': "en",
                             'home_path': os.environ.get('home_path', PROJECT_ROOT), 'scr_path': os.environ.get('scr_path', PROJECT_ROOT),
                             'settings_path': os.environ.get('settings_path', str(Path(os.environ.get('home_path', PROJECT_ROOT)) / 'anxlight_config.json')),
-                            'venv_path': os.environ.get('venv_path', str(Path(PROJECT_ROOT) / "anxlight_venv")),
+                            'venv_path': os.environ.get('venv_path', str(Path(PROJECT_ROOT) / "anxlight_venv")), # VENV_NAME from pre_flight
                             'fork': "drf0rk/AnxLight", 'branch': subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], cwd=PROJECT_ROOT).strip().decode('utf-8'),
                             'start_timer': int(time.time() - 5), 'public_ip': ""}
         anxlight_config = {"WIDGETS": widgets_data, "ENVIRONMENT": environment_data, "UI_SELECTION": {"webui_choice": webui_choice}}
@@ -400,8 +418,8 @@ def launch_anxlight_main_process(
 
     log_output_list.append(f"\n--- Step 4: Updating WebUI Paths in Config ---\n")
     try:
-        if webui_utils and not isinstance(webui_utils, _DummyWebUIUtilsModule): webui_utils.update_current_webui(webui_choice); log_output_list.append(f"Called webui_utils.update_current_webui for '{webui_choice}'.\n")
-        else: log_output_list.append(f"Warning: webui_utils dummy/not loaded. update_current_webui for '{webui_choice}' skipped/dummy.\n");_ = webui_utils.update_current_webui(webui_choice) if webui_utils else None
+        if not isinstance(webui_utils, _DummyWebUIUtilsModule): webui_utils.update_current_webui(webui_choice); log_output_list.append(f"Called webui_utils.update_current_webui for '{webui_choice}'.\n")
+        else: log_output_list.append(f"Warning: webui_utils dummy/not loaded. update_current_webui for '{webui_choice}' skipped/dummy.\n");_ = webui_utils.update_current_webui(webui_choice) # call dummy
     except Exception as e: log_output_list.append(f"Error calling webui_utils.update_current_webui: {e}\nTraceback: {traceback.format_exc()}\n")
     yield "".join(log_output_list)
         
@@ -418,8 +436,13 @@ def launch_anxlight_main_process(
 
 with gr.Blocks(css=".gradio-container {max-width: 90% !important; margin: auto !important;}") as demo:
     gr.Markdown(f"# AnxLight Launcher ({APP_DISPLAY_VERSION})")
+    # Initial population of choices - call get_asset_choices once at an appropriate scope
+    # Or trigger an update on first load. For now, let's do it here.
+    # This will load data for the default SD_VERSION_CHOICES[0]
+    load_data_for_sd_version(SD_VERSION_CHOICES[0]) 
     _initial_models, _initial_vaes, _initial_controlnets, _initial_loras = get_asset_choices(SD_VERSION_CHOICES[0], INPAINTING_FILTER_CHOICES[0])
     _initial_webui = WEBUI_CHOICES[0]; _initial_is_comfy = (_initial_webui == 'ComfyUI')
+    
     with gr.Tabs():
         with gr.TabItem("Session Configuration"): 
             gr.Markdown("## Main Configuration")
@@ -429,8 +452,8 @@ with gr.Blocks(css=".gradio-container {max-width: 90% !important; margin: auto !
                 update_webui_chk = gr.Checkbox(label="Update WebUI Components (Daily)", value=False, info="If pre-flight setup allows for daily/minor updates of WebUI components."); update_extensions_chk = gr.Checkbox(label="Update Extensions (Daily)", value=False, info="If pre-flight setup allows for daily/minor updates of extensions.", visible=not _initial_is_comfy)
                 check_custom_nodes_deps_chk = gr.Checkbox(label="Check ComfyUI Nodes Deps (on Launch)", value=True, visible=_initial_is_comfy, info="For ComfyUI, check custom node dependencies during launch process."); detailed_download_chk = gr.Checkbox(label="Detailed Session Log", value=True, info="Enable detailed UI and file logging for this session's processes.")
             gr.Markdown("### Assets Selection (for this session)")
-            with gr.Row(): models_cbg = gr.CheckboxGroup(label="Select Models", choices=_initial_models, value=[]); vaes_cbg = gr.CheckboxGroup(label="Select VAEs", choices=_initial_vaes, value=[])
-            with gr.Row(): controlnets_cbg = gr.CheckboxGroup(label="Select ControlNets", choices=_initial_controlnets, value=[]); loras_cbg = gr.CheckboxGroup(label="Select LoRAs", choices=_initial_loras, value=[])
+            with gr.Row(): models_cbg = gr.CheckboxGroup(label="Select Models", choices=_initial_models, value=[], interactive=bool(_initial_models)); vaes_cbg = gr.CheckboxGroup(label="Select VAEs", choices=_initial_vaes, value=[], interactive=bool(_initial_vaes))
+            with gr.Row(): controlnets_cbg = gr.CheckboxGroup(label="Select ControlNets", choices=_initial_controlnets, value=[], interactive=bool(_initial_controlnets)); loras_cbg = gr.CheckboxGroup(label="Select LoRAs", choices=_initial_loras, value=[], interactive=bool(_initial_loras))
             gr.Markdown("### Advanced Options"); commit_hash_tb = gr.Textbox(label="WebUI Commit Hash (For Pre-Flight Setup)", info="If pre-flight needs to install a specific WebUI version. Run Cell 1 after setting.", placeholder="e.g., a1b2c3d...")
             gr.Markdown("### Tokens & Access Keys")
             with gr.Row(): civitai_token_tb = gr.Textbox(label="CivitAI API Key", type="password", placeholder="Optional"); huggingface_token_tb = gr.Textbox(label="HuggingFace Token", type="password", placeholder="Optional for private HF assets")
@@ -450,4 +473,7 @@ with gr.Blocks(css=".gradio-container {max-width: 90% !important; margin: auto !
     all_launch_inputs = [webui_choice_dd, sd_version_rb, inpainting_filter_rg, models_cbg, vaes_cbg, controlnets_cbg, loras_cbg, update_webui_chk, update_extensions_chk, check_custom_nodes_deps_chk, detailed_download_chk, commit_hash_tb, civitai_token_tb, huggingface_token_tb, zrok_token_tb, ngrok_token_tb, custom_args_tb, theme_accent_dd]
     launch_button.click(fn=launch_anxlight_main_process, inputs=all_launch_inputs, outputs=live_log_ta)
 if __name__ == "__main__":
-    print(f"Launching Gradio App for AnxLight ({APP_DISPLAY_VERSION})..."); demo.queue().launch(debug=True, share=os.environ.get("GRADIO_SHARE", "true").lower() == "true", prevent_thread_lock=True, show_error=True)
+    print(f"Launching Gradio App for AnxLight ({APP_DISPLAY_VERSION})..."); 
+    # Ensure DATA_MODULE_PATH is in sys.path when run directly for testing
+    if DATA_MODULE_PATH not in sys.path: sys.path.insert(0, DATA_MODULE_PATH)
+    demo.queue().launch(debug=True, share=os.environ.get("GRADIO_SHARE", "true").lower() == "true", prevent_thread_lock=True, show_error=True)
