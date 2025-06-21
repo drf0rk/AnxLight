@@ -92,7 +92,7 @@ async def download_configuration():
     try:
         CD(FORGE_EXTENSIONS_PATH)
         print(f"--- [{UI}.py] Cloning extensions into {FORGE_EXTENSIONS_PATH} ---")
-        tasks = []
+        procs = []
         for command in extensions_list:
             repo_name = command.split('/')[-1].split()[0].replace('.git', '')
             if len(command.split()) > 1:
@@ -102,15 +102,17 @@ async def download_configuration():
                 print(f"Extension '{repo_name}' already exists. Skipping clone.")
                 continue
 
-            tasks.append(asyncio.create_subprocess_shell(
+            process = await asyncio.create_subprocess_shell(
                 f"git clone --depth 1 {command}",
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE
-            ))
+            )
+            procs.append(process)
 
-        for i, process in enumerate(tasks):
-            _, stderr = await process.communicate()
-            if process.returncode != 0:
+        results = await asyncio.gather(*[p.communicate() for p in procs])
+
+        for i, (stdout, stderr) in enumerate(results):
+            if procs[i].returncode != 0:
                 print(f"Error cloning extension. Git stderr: {stderr.decode() if stderr else 'No stderr'}", file=sys.stderr)
     finally:
         CD(original_cwd)
