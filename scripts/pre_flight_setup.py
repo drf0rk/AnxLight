@@ -17,7 +17,7 @@ SUPPORTED_WEBUIS = {
 }
 
 CORE_DEPENDENCIES = ["gradio", "pyngrok", "huggingface-hub"]
-SYSTEM_PACKAGES = ["aria2", "unzip"] # Added aria2 and unzip
+SYSTEM_PACKAGES = ["python3-venv", "aria2", "unzip"] # Consolidated list
 
 TUNNELING_CLIENTS = {
     "cloudflared": {
@@ -84,13 +84,12 @@ def step_0_display_welcome_and_versions(versions):
     print("---------------------------------")
 
 def step_0_ensure_system_packages():
-    """Ensures essential system packages like python3-venv, aria2, and unzip are installed."""
+    """Ensures essential system packages are installed on Debian-based systems."""
     print("\n--- Pre-Step: Ensuring essential system packages are installed ---")
     if "linux" in sys.platform:
-        packages_to_install = ["python3-venv"] + SYSTEM_PACKAGES
-        print(f"Checking for required packages: {packages_to_install}")
+        print(f"Checking for required packages: {SYSTEM_PACKAGES}")
         run_command("sudo apt-get update -y", shell=True)
-        install_command = "sudo apt-get install -y " + " ".join(packages_to_install)
+        install_command = "sudo apt-get install -y " + " ".join(SYSTEM_PACKAGES)
         if not run_command(install_command, shell=True):
              print(f"WARNING: Failed to install one or more system packages. Setup might fail.", file=sys.stderr)
         else:
@@ -124,7 +123,6 @@ def step_2_setup_virtual_environment():
     return python_in_venv
 
 def step_2b_install_pip_in_venv(python_in_venv):
-    """Ensures pip is installed in the new VENV, fixing 'No module named pip' errors."""
     print("\n--- Step 2b: Verifying/Installing pip in Virtual Environment ---")
     pip_check_command = [python_in_venv, "-m", "pip", "--version"]
     pip_installed = run_command(pip_check_command, check=False)
