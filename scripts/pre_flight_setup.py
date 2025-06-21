@@ -5,12 +5,8 @@ import sys
 import importlib.util # For importing anxlight_version
 
 # --- Configuration ---
-# This script should be run from the root of the AnxLight repository.
 PROJECT_ROOT_DIR = "." 
 
-# List of WebUIs to install. The keys are the UI names, and the values are the paths
-# to their setup scripts within the AnxLight repository.
-# The order of installation here does not currently matter, but could if there were dependencies.
 SUPPORTED_WEBUIS = {
     "A1111": "scripts/UIs/A1111.py",
     "Classic": "scripts/UIs/Classic.py",
@@ -20,11 +16,8 @@ SUPPORTED_WEBUIS = {
     "SD-UX": "scripts/UIs/SD-UX.py",
 }
 
-# Core Python dependencies required for main_gradio_app.py to function.
-# These will be installed into the virtual environment.
 CORE_DEPENDENCIES = ["gradio", "pyngrok", "huggingface-hub"]
 
-# Tunneling clients - commands to check if installed and provide install instructions
 TUNNELING_CLIENTS = {
     "cloudflared": {
         "check_command": ["cloudflared", "--version"],
@@ -37,7 +30,7 @@ TUNNELING_CLIENTS = {
 }
 
 VENV_NAME = "anxlight_venv"
-PYTHON_EXECUTABLE = sys.executable # Use the python that is running this script to create the venv
+PYTHON_EXECUTABLE = sys.executable
 
 # --- Helper Functions ---
 def run_command(command, cwd=None, env=None, check=True, shell=False):
@@ -82,7 +75,6 @@ def import_versions():
 # --- Main Setup Steps ---
 
 def step_0_display_welcome_and_versions(versions):
-    """Displays welcome message and component versions."""
     print("--- AnxLight Pre-Flight Setup ---")
     if versions:
         print(f"AnxLight System Version: {getattr(versions, 'ANXLIGHT_OVERALL_SYSTEM_VERSION', 'N/A')}")
@@ -93,8 +85,25 @@ def step_0_display_welcome_and_versions(versions):
         print("Version information could not be loaded.")
     print("---------------------------------")
 
+def step_0_ensure_venv_package():
+    """Ensures the python3-venv package is installed on Debian-based systems."""
+    print("\n--- Pre-Step: Ensuring 'python3-venv' is installed (for compatibility) ---")
+    if sys.platform == "linux" or sys.platform == "linux2":
+        try:
+            # Check if dpkg is available
+            subprocess.run(["dpkg", "-s", "python3-venv"], capture_output=True, check=True)
+            print("'python3-venv' package is already installed.")
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            print("'python3-venv' not found or check failed. Attempting to install...")
+            run_command("sudo apt-get update -y", shell=True)
+            if not run_command("sudo apt-get install -y python3-venv", shell=True):
+                 print("WARNING: Failed to install 'python3-venv'. Venv creation might fail.", file=sys.stderr)
+            else:
+                 print("'python3-venv' installed successfully.")
+    else:
+        print("Skipping venv package check on non-Linux system.")
+
 def step_1_update_repo():
-    """Pulls the latest changes from the git repository."""
     print("\n--- Step 1: Updating AnxLight Repository ---")
     print(f"Current working directory is expected to be: {os.path.abspath(PROJECT_ROOT_DIR)}")
     print("Running 'git pull' to ensure latest version...")
@@ -102,7 +111,6 @@ def step_1_update_repo():
         print("Warning: 'git pull' failed. Continuing with the current version.", file=sys.stderr)
 
 def step_2_setup_virtual_environment():
-    """Sets up the Python virtual environment."""
     print("\n--- Step 2: Setting up Virtual Environment ---")
     venv_path = os.path.join(PROJECT_ROOT_DIR, VENV_NAME)
     
@@ -123,18 +131,15 @@ def step_2_setup_virtual_environment():
     return python_in_venv
 
 def step_3_install_dependencies_in_venv(python_in_venv):
-    """Installs core Python dependencies into the VENV."""
     print(f"\n--- Step 3: Installing Core Dependencies into VENV ({VENV_NAME}) ---")
     for dep in CORE_DEPENDENCIES:
         run_command([python_in_venv, "-m", "pip", "install", "--upgrade", dep])
 
 def step_4_install_tunneling_clients():
-    """Checks and provides instructions for tunneling clients."""
     print("\n--- Step 4: Checking for Tunneling Clients ---")
     for client_name, info in TUNNELING_CLIENTS.items():
         print(f"Checking for {client_name}...")
         try:
-            # Use subprocess.run for a cleaner check
             result = subprocess.run(info["check_command"], capture_output=True, text=True, shell=False)
             if result.returncode == 0:
                 print(f"{client_name} is already installed.")
@@ -145,7 +150,6 @@ def step_4_install_tunneling_clients():
             run_command(info["install_command"], shell=True)
 
 def step_5_install_webuis(python_in_venv):
-    """Installs all supported WebUIs by calling their refactored setup scripts."""
     print("\n--- Step 5: Installing All Supported WebUIs ---")
     
     for ui_name, setup_script_path in SUPPORTED_WEBUIS.items():
@@ -156,7 +160,6 @@ def step_5_install_webuis(python_in_venv):
             continue
         
         print(f"Running setup for {ui_name} using {python_in_venv}...")
-        # Run each UI installer script from the project root directory
         if not run_command([python_in_venv, setup_script_path], cwd=PROJECT_ROOT_DIR):
             print(f"Warning: Installation of {ui_name} may have encountered errors.", file=sys.stderr)
         else:
@@ -165,11 +168,11 @@ def step_5_install_webuis(python_in_venv):
     print("\nAll WebUI installation scripts have been executed.")
 
 if __name__ == "__main__":
-    # This script assumes it is executed from the root of the AnxLight repository.
-    # The Colab notebook's Cell 1 should handle cloning and `cd AnxLight` before running this.
-    
     versions = import_versions()
     step_0_display_welcome_and_versions(versions)
+    
+    # This pre-step is crucial for Debian/Ubuntu based environments like Colab
+    step_0_ensure_venv_package()
     
     step_1_update_repo()
     
