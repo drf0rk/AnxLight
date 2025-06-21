@@ -17,6 +17,7 @@ SUPPORTED_WEBUIS = {
 }
 
 CORE_DEPENDENCIES = ["gradio", "pyngrok", "huggingface-hub"]
+SYSTEM_PACKAGES = ["aria2", "unzip"] # Added aria2 and unzip
 
 TUNNELING_CLIENTS = {
     "cloudflared": {
@@ -82,22 +83,20 @@ def step_0_display_welcome_and_versions(versions):
         print("Version information could not be loaded.")
     print("---------------------------------")
 
-def step_0_ensure_venv_package():
-    """Ensures the python3-venv package is installed on Debian-based systems."""
-    print("\n--- Pre-Step: Ensuring 'python3-venv' is installed (for compatibility) ---")
+def step_0_ensure_system_packages():
+    """Ensures essential system packages like python3-venv, aria2, and unzip are installed."""
+    print("\n--- Pre-Step: Ensuring essential system packages are installed ---")
     if "linux" in sys.platform:
-        try:
-            subprocess.run(["dpkg", "-s", "python3-venv"], capture_output=True, check=True, text=True)
-            print("'python3-venv' package is already installed.")
-        except (FileNotFoundError, subprocess.CalledProcessError):
-            print("'python3-venv' not found or check failed. Attempting to install...")
-            run_command("sudo apt-get update -y", shell=True)
-            if not run_command("sudo apt-get install -y python3-venv", shell=True):
-                 print("WARNING: Failed to install 'python3-venv'. Venv creation might fail.", file=sys.stderr)
-            else:
-                 print("'python3-venv' installed successfully.")
+        packages_to_install = ["python3-venv"] + SYSTEM_PACKAGES
+        print(f"Checking for required packages: {packages_to_install}")
+        run_command("sudo apt-get update -y", shell=True)
+        install_command = "sudo apt-get install -y " + " ".join(packages_to_install)
+        if not run_command(install_command, shell=True):
+             print(f"WARNING: Failed to install one or more system packages. Setup might fail.", file=sys.stderr)
+        else:
+             print("System packages checked/installed successfully.")
     else:
-        print("Skipping venv package check on non-Linux system.")
+        print("Skipping system package check on non-Linux system.")
 
 def step_1_update_repo():
     print("\n--- Step 1: Updating AnxLight Repository ---")
@@ -115,7 +114,6 @@ def step_2_setup_virtual_environment():
 
     if not os.path.exists(python_in_venv):
         print(f"Creating virtual environment at: {venv_path} (without pip, will install manually).")
-        # Use --without-pip to avoid ensurepip errors in problematic environments.
         if not run_command([PYTHON_EXECUTABLE, "-m", "venv", "--without-pip", venv_path], cwd=PROJECT_ROOT_DIR):
              print("FATAL: Failed to create virtual environment structure. Exiting.", file=sys.stderr)
              sys.exit(1)
@@ -186,7 +184,7 @@ if __name__ == "__main__":
     versions = import_versions()
     step_0_display_welcome_and_versions(versions)
     
-    step_0_ensure_venv_package()
+    step_0_ensure_system_packages()
     
     step_1_update_repo()
     
