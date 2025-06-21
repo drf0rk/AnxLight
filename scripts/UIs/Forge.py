@@ -7,32 +7,15 @@ import subprocess
 import asyncio
 import os
 
-# This block ensures that modules from the 'scripts' and 'modules' directories can be imported
-try:
-    project_root = Path(__file__).parent.parent.parent
-    scripts_dir = project_root / "scripts"
-    if str(project_root) not in sys.path:
-        sys.path.insert(0, str(project_root))
-    if str(scripts_dir) not in sys.path:
-        sys.path.insert(0, str(scripts_dir))
-    
-    from modules.Manager import m_download   # Every Download
-    import modules.json_utils as js          # JSON
-except ImportError as e:
-    print(f"Error importing required modules: {e}", file=sys.stderr)
-    # Define dummy functions if imports fail to prevent NameError
-    def m_download(*args, **kwargs):
-        print("Error: m_download from Manager not available.", file=sys.stderr)
-    class DummyJson:
-        def read(self, *args):
-            print(f"Warning: json_utils.read not available. Returning default for {args[1]}", file=sys.stderr)
-            if args[1] == 'ENVIRONMENT.env_name': return 'Colab'
-            if args[1] == 'ENVIRONMENT.fork': return 'anxety-solo/sd-webui'
-            if args[1] == 'ENVIRONMENT.branch': return 'main'
-            if args[1] == 'WEBUI.extension_dir': return './extensions'
-            return None
-    js = DummyJson()
+project_root = Path(__file__).parent.parent.parent
+scripts_dir = project_root / "scripts"
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+if str(scripts_dir) not in sys.path:
+    sys.path.insert(0, str(scripts_dir))
 
+from modules.Manager import m_download
+import modules.json_utils as js
 
 osENV = os.environ
 CD = os.chdir
@@ -40,23 +23,19 @@ CD = os.chdir
 # Constants
 UI = 'Forge'
 
-# (auto-convert env vars to Path)
 PATHS = {k: Path(v) for k, v in osENV.items() if k.endswith('_path')}
-
 HOME = PATHS.get('home_path', Path.cwd())
 VENV = PATHS.get('venv_path', Path.cwd() / 'anxlight_venv')
 SETTINGS_PATH = PATHS.get('settings_path', Path.cwd() / 'config/settings.json')
 
 WEBUI = HOME / UI
-ENV_NAME = js.read(SETTINGS_PATH, 'ENVIRONMENT.env_name')
-
-FORK_REPO = js.read(SETTINGS_PATH, 'ENVIRONMENT.fork')
-BRANCH = js.read(SETTINGS_PATH, 'ENVIRONMENT.branch')
 FORGE_EXTENSIONS_PATH = WEBUI / 'extensions'
+ENV_NAME = js.read(SETTINGS_PATH, 'ENVIRONMENT.env_name') if SETTINGS_PATH.exists() else 'Colab'
+FORK_REPO = js.read(SETTINGS_PATH, 'ENVIRONMENT.fork') if SETTINGS_PATH.exists() else 'anxety-solo/sd-webui'
+BRANCH = js.read(SETTINGS_PATH, 'ENVIRONMENT.branch') if SETTINGS_PATH.exists() else 'main'
 
 if HOME.exists():
     CD(HOME)
-
 
 # ==================== WEBUI OPERATIONS ====================
 
@@ -64,35 +43,28 @@ async def _download_file(url, directory, filename):
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     file_path = directory / filename
-
     if file_path.exists():
-        try:
-            file_path.unlink()
-        except OSError as e:
-            print(f"Warning: Could not delete existing file {file_path}. Error: {e}", file=sys.stderr)
-
+        file_path.unlink()
     process = await asyncio.create_subprocess_shell(
         f"curl -sLo \"{file_path}\" \"{url}\"",
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE
+        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
     )
     _, stderr = await process.communicate()
     if process.returncode != 0:
-        print(f"Error downloading {url} to {file_path}. curl stderr: {stderr.decode() if stderr else 'No stderr'}", file=sys.stderr)
+        print(f"Error downloading {url}. curl stderr: {stderr.decode() if stderr else 'No stderr'}", file=sys.stderr)
 
 async def download_files(file_list):
     tasks = []
     for file_info in file_list:
         parts = file_info.split(',')
         url = parts[0].strip()
-        directory_str = parts[1].strip() if len(parts) > 1 else str(WEBUI)
+        directory = Path(parts[1].strip()) if len(parts) > 1 else WEBUI
         filename = parts[2].strip() if len(parts) > 2 else Path(url).name
-        tasks.append(_download_file(url, Path(directory_str), filename))
+        tasks.append(_download_file(url, directory, filename))
     await asyncio.gather(*tasks)
 
 async def download_configuration():
     print(f"--- [{UI}.py] Downloading configuration files and extensions ---")
-    ## FILES
     url_cfg = f"https://raw.githubusercontent.com/{FORK_REPO}/{BRANCH}/__configs__"
     configs_to_download = [
         f"{url_cfg}/styles.csv,{WEBUI}",
@@ -103,7 +75,6 @@ async def download_configuration():
     ]
     await download_files(configs_to_download)
 
-    ## REPOS (Extensions)
     extensions_list = [
         'https://github.com/anxety-solo/webui_timer timer',
         'https://github.com/anxety-solo/anxety-theme',
@@ -122,20 +93,25 @@ async def download_configuration():
         CD(FORGE_EXTENSIONS_PATH)
         print(f"--- [{UI}.py] Cloning extensions into {FORGE_EXTENSIONS_PATH} ---")
         tasks = []
-        for command_str in extensions_list:
-            process = await asyncio.create_subprocess_shell(
-                f"git clone --depth 1 {command_str}",
+        for command in extensions_list:
+            repo_name = command.split('/')[-1].split()[0].replace('.git', '')
+            if len(command.split()) > 1:
+                repo_name = command.split()[-1]
+            
+            if (FORGE_EXTENSIONS_PATH / repo_name).exists():
+                print(f"Extension '{repo_name}' already exists. Skipping clone.")
+                continue
+
+            tasks.append(asyncio.create_subprocess_shell(
+                f"git clone --depth 1 {command}",
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE
-            )
-            tasks.append(process)
+            ))
 
         for i, process in enumerate(tasks):
             _, stderr = await process.communicate()
             if process.returncode != 0:
-                print(f"Error cloning extension: {extensions_list[i]}. Git stderr: {stderr.decode() if stderr else 'No stderr'}", file=sys.stderr)
-            else:
-                print(f"Successfully cloned: {extensions_list[i]}")
+                print(f"Error cloning extension. Git stderr: {stderr.decode() if stderr else 'No stderr'}", file=sys.stderr)
     finally:
         CD(original_cwd)
 
@@ -177,10 +153,9 @@ def unpack_webui():
     else:
         print(f"--- [{UI}.py] Forge {install_script} not found. This is unexpected for a fresh clone. ---", file=sys.stderr)
 
-
 # ======================== MAIN CODE =======================
 if __name__ == '__main__':
-    print(f"--- AnxLight {UI} UI Script ---")
+    print(f"--- AnxLight {UI} UI Installer Script ---")
     
     unpack_webui()
     print(f"--- [{UI}.py] Forge installation process finished, proceeding to download configuration (if any) ---")
