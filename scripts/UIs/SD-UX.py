@@ -83,7 +83,7 @@ async def download_configuration():
 def unpack_webui():
     zip_path = HOME / f"{UI}.zip"
     print(f"--- [{UI}.py] Step 1: Downloading WebUI from {REPO_URL} (assuming zip archive) ---")
-    m_download(REPO_URL, str(HOME), f"{UI}.zip")
+    m_download(f"{REPO_URL} {str(HOME)} {UI}.zip", log=True)
     
     print(f"--- [{UI}.py] Step 2: Unzipping {zip_path} to {WEBUI} ---")
     WEBUI.mkdir(parents=True, exist_ok=True)
