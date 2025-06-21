@@ -99,32 +99,40 @@ async def download_configuration():
     try:
         CD(CUSTOM_NODES_PATH)
         print(f"--- [{UI}.py] Cloning custom nodes into {CUSTOM_NODES_PATH} ---")
-        tasks = []
+        
+        procs = []
         for command in extensions_list:
             repo_name = command.split('/')[-1].split()[0].replace('.git', '')
             if len(command.split()) > 1:
                 repo_name = command.split()[-1]
-
+            
             if (CUSTOM_NODES_PATH / repo_name).exists():
                 print(f"Custom node '{repo_name}' already exists. Skipping clone.")
                 continue
 
-            tasks.append(asyncio.create_subprocess_shell(
+            # Correctly await the creation of the process
+            process = await asyncio.create_subprocess_shell(
                 f"git clone --depth 1 {command}",
-                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
-            ))
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE
+            )
+            procs.append(process)
 
-        for i, process in enumerate(tasks):
-            _, stderr = await process.communicate()
-            if process.returncode != 0:
+        # Now procs contains Process objects, so we can gather their results
+        results = await asyncio.gather(*[p.communicate() for p in procs])
+
+        # Check results after they are all gathered
+        for i, (stdout, stderr) in enumerate(results):
+            if procs[i].returncode != 0:
                 print(f"Error cloning custom node. Git stderr: {stderr.decode() if stderr else 'No stderr'}", file=sys.stderr)
+
     finally:
         CD(original_cwd)
 
 def unpack_webui():
     zip_path = HOME / f"{UI}.zip"
     print(f"--- [{UI}.py] Step 1: Downloading WebUI from {REPO_URL} ---")
-    m_download(REPO_URL, str(HOME), f"{UI}.zip")
+    m_download(f"{REPO_URL} {str(HOME)} {UI}.zip", log=True)
     
     print(f"--- [{UI}.py] Step 2: Unzipping {zip_path} to {WEBUI} ---")
     WEBUI.mkdir(parents=True, exist_ok=True)
