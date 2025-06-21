@@ -7,7 +7,6 @@ import subprocess
 import asyncio
 import os
 
-# This block ensures that modules from the 'scripts' and 'modules' directories can be imported
 project_root = Path(__file__).parent.parent.parent
 scripts_dir = project_root / "scripts"
 if str(project_root) not in sys.path:
@@ -24,17 +23,13 @@ CD = os.chdir
 # Constants
 UI = 'A1111'
 
-# (auto-convert env vars to Path)
 PATHS = {k: Path(v) for k, v in osENV.items() if k.endswith('_path')}
-
 HOME = PATHS.get('home_path', Path.cwd())
 VENV = PATHS.get('venv_path', Path.cwd() / 'anxlight_venv')
 SETTINGS_PATH = PATHS.get('settings_path', Path.cwd() / 'config/settings.json')
 
 WEBUI = HOME / UI
-# This script runs before the config file is created, so we define paths relative to WEBUI
 EXTS = WEBUI / 'extensions'
-# We'll use a placeholder for ENV_NAME as it's only used for one optional extension
 ENV_NAME = js.read(SETTINGS_PATH, 'ENVIRONMENT.env_name') if SETTINGS_PATH.exists() else 'Colab'
 FORK_REPO = js.read(SETTINGS_PATH, 'ENVIRONMENT.fork') if SETTINGS_PATH.exists() else 'anxety-solo/sd-webui'
 BRANCH = js.read(SETTINGS_PATH, 'ENVIRONMENT.branch') if SETTINGS_PATH.exists() else 'main'
@@ -127,7 +122,7 @@ async def download_configuration():
 def unpack_webui():
     zip_path = HOME / f"{UI}.zip"
     print(f"--- [A1111.py] Step 1: Downloading WebUI from {REPO_URL} ---")
-    m_download(REPO_URL, str(HOME), f"{UI}.zip")
+    m_download(REPO_URL, str(HOME), f"{UI}.zip", log=True)
     
     print(f"--- [A1111.py] Step 2: Unzipping {zip_path} to {WEBUI} ---")
     try:
