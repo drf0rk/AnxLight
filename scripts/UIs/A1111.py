@@ -8,7 +8,6 @@ import asyncio
 import os
 
 # This block ensures that modules from the 'scripts' and 'modules' directories can be imported
-# when this script is run as a standalone process by pre_flight_setup.py.
 project_root = Path(__file__).parent.parent.parent
 scripts_dir = project_root / "scripts"
 if str(project_root) not in sys.path:
@@ -16,11 +15,8 @@ if str(project_root) not in sys.path:
 if str(scripts_dir) not in sys.path:
     sys.path.insert(0, str(scripts_dir))
 
-from modules.Manager import m_download   # Every Download
-import modules.json_utils as js          # JSON
-
-# Versioning is now handled by pre_flight_setup.py, which can print it.
-# This script will just focus on installation.
+from modules.Manager import m_download
+import modules.json_utils as js
 
 osENV = os.environ
 CD = os.chdir
@@ -35,18 +31,17 @@ HOME = PATHS.get('home_path', Path.cwd())
 VENV = PATHS.get('venv_path', Path.cwd() / 'anxlight_venv')
 SETTINGS_PATH = PATHS.get('settings_path', Path.cwd() / 'config/settings.json')
 
-
 WEBUI = HOME / UI
-ENV_NAME = js.read(SETTINGS_PATH, 'ENVIRONMENT.env_name')
-
+# This script runs before the config file is created, so we define paths relative to WEBUI
+EXTS = WEBUI / 'extensions'
+# We'll use a placeholder for ENV_NAME as it's only used for one optional extension
+ENV_NAME = js.read(SETTINGS_PATH, 'ENVIRONMENT.env_name') if SETTINGS_PATH.exists() else 'Colab'
+FORK_REPO = js.read(SETTINGS_PATH, 'ENVIRONMENT.fork') if SETTINGS_PATH.exists() else 'anxety-solo/sd-webui'
+BRANCH = js.read(SETTINGS_PATH, 'ENVIRONMENT.branch') if SETTINGS_PATH.exists() else 'main'
 REPO_URL = f"https://huggingface.co/NagisaNao/ANXETY/resolve/main/{UI}.zip"
-FORK_REPO = js.read(SETTINGS_PATH, 'ENVIRONMENT.fork')
-BRANCH = js.read(SETTINGS_PATH, 'ENVIRONMENT.branch')
-EXTS = Path(js.read(SETTINGS_PATH, 'WEBUI.extension_dir'))
 
 if HOME.exists():
     CD(HOME)
-
 
 # ==================== WEBUI OPERATIONS ====================
 
@@ -54,14 +49,11 @@ async def _download_file(url, directory, filename):
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     file_path = directory / filename
-
     if file_path.exists():
         file_path.unlink()
-
     process = await asyncio.create_subprocess_shell(
         f"curl -sLo \"{file_path}\" \"{url}\"",
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE
+        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
     )
     _, stderr = await process.communicate()
     if process.returncode != 0:
@@ -110,6 +102,14 @@ async def download_configuration():
         CD(EXTS)
         tasks = []
         for command in extensions_list:
+            repo_name = command.split('/')[-1].split()[0].replace('.git', '')
+            if len(command.split()) > 1:
+                repo_name = command.split()[-1]
+            
+            if (EXTS / repo_name).exists():
+                print(f"Extension '{repo_name}' already exists. Skipping clone.")
+                continue
+
             tasks.append(asyncio.create_subprocess_shell(
                 f"git clone --depth 1 {command}",
                 stdout=subprocess.DEVNULL,
@@ -119,7 +119,7 @@ async def download_configuration():
         for i, process in enumerate(tasks):
             _, stderr = await process.communicate()
             if process.returncode != 0:
-                print(f"Error cloning extension: {extensions_list[i]}. Git stderr: {stderr.decode() if stderr else 'No stderr'}", file=sys.stderr)
+                print(f"Error cloning extension. Git stderr: {stderr.decode() if stderr else 'No stderr'}", file=sys.stderr)
     finally:
         CD(original_cwd)
 
@@ -127,7 +127,7 @@ async def download_configuration():
 def unpack_webui():
     zip_path = HOME / f"{UI}.zip"
     print(f"--- [A1111.py] Step 1: Downloading WebUI from {REPO_URL} ---")
-    m_download(f"\"{REPO_URL}\"", str(HOME), f"{UI}.zip")
+    m_download(REPO_URL, str(HOME), f"{UI}.zip")
     
     print(f"--- [A1111.py] Step 2: Unzipping {zip_path} to {WEBUI} ---")
     try:
