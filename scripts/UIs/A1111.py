@@ -9,35 +9,18 @@ import os
 
 # This block ensures that modules from the 'scripts' and 'modules' directories can be imported
 # when this script is run as a standalone process by pre_flight_setup.py.
-try:
-    project_root = Path(__file__).parent.parent.parent
-    scripts_dir = project_root / "scripts"
-    if str(project_root) not in sys.path:
-        sys.path.insert(0, str(project_root))
-    if str(scripts_dir) not in sys.path:
-        sys.path.insert(0, str(scripts_dir))
-    
-    from modules.Manager import m_download   # Every Download
-    import modules.json_utils as js          # JSON
-    from anxlight_version import A1111_UI_VERSION
-except ImportError as e:
-    print(f"Error importing required modules: {e}", file=sys.stderr)
-    print("Please ensure this script is run from the AnxLight project root.", file=sys.stderr)
-    # Set fallback values to allow the script to potentially continue if modules are not critical for a phase
-    A1111_UI_VERSION = "1.0.6" # Fallback
-    # Define dummy functions if imports fail to prevent NameError
-    def m_download(*args, **kwargs):
-        print("Error: m_download from Manager not available.", file=sys.stderr)
-    class DummyJson:
-        def read(self, *args):
-            print(f"Warning: json_utils.read not available. Returning default for {args[1]}", file=sys.stderr)
-            if args[1] == 'ENVIRONMENT.env_name': return 'Colab'
-            if args[1] == 'ENVIRONMENT.fork': return 'anxety-solo/sd-webui'
-            if args[1] == 'ENVIRONMENT.branch': return 'main'
-            if args[1] == 'WEBUI.extension_dir': return './extensions'
-            return None
-    js = DummyJson()
+project_root = Path(__file__).parent.parent.parent
+scripts_dir = project_root / "scripts"
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+if str(scripts_dir) not in sys.path:
+    sys.path.insert(0, str(scripts_dir))
 
+from modules.Manager import m_download   # Every Download
+import modules.json_utils as js          # JSON
+
+# Versioning is now handled by pre_flight_setup.py, which can print it.
+# This script will just focus on installation.
 
 osENV = os.environ
 CD = os.chdir
@@ -48,7 +31,7 @@ UI = 'A1111'
 # (auto-convert env vars to Path)
 PATHS = {k: Path(v) for k, v in osENV.items() if k.endswith('_path')}
 
-HOME = PATHS.get('home_path', Path.cwd()) # Use CWD as a fallback for home_path
+HOME = PATHS.get('home_path', Path.cwd())
 VENV = PATHS.get('venv_path', Path.cwd() / 'anxlight_venv')
 SETTINGS_PATH = PATHS.get('settings_path', Path.cwd() / 'config/settings.json')
 
@@ -61,7 +44,6 @@ FORK_REPO = js.read(SETTINGS_PATH, 'ENVIRONMENT.fork')
 BRANCH = js.read(SETTINGS_PATH, 'ENVIRONMENT.branch')
 EXTS = Path(js.read(SETTINGS_PATH, 'WEBUI.extension_dir'))
 
-# This CD might be redundant if pre_flight_setup.py already sets CWD, but it's a safeguard.
 if HOME.exists():
     CD(HOME)
 
@@ -163,7 +145,7 @@ def unpack_webui():
 
 # ======================== MAIN CODE =======================
 if __name__ == '__main__':
-    print(f"--- AnxLight A1111 UI Script v{A1111_UI_VERSION} ---")
+    print(f"--- AnxLight {UI} UI Installer Script ---")
     unpack_webui()
     print("--- [A1111.py] Unpack finished, proceeding to download configuration ---")
     asyncio.run(download_configuration())
