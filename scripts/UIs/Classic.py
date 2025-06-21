@@ -23,9 +23,7 @@ CD = os.chdir
 # Constants
 UI = 'Classic'
 
-# (auto-convert env vars to Path)
 PATHS = {k: Path(v) for k, v in osENV.items() if k.endswith('_path')}
-
 HOME = PATHS.get('home_path', Path.cwd())
 VENV = PATHS.get('venv_path', Path.cwd() / 'anxlight_venv')
 SETTINGS_PATH = PATHS.get('settings_path', Path.cwd() / 'config/settings.json')
@@ -39,7 +37,6 @@ REPO_URL = f"https://huggingface.co/NagisaNao/ANXETY/resolve/main/{UI}.zip"
 
 if HOME.exists():
     CD(HOME)
-
 
 # ==================== WEBUI OPERATIONS ====================
 
@@ -108,24 +105,34 @@ async def download_configuration():
             if (EXTS / repo_name).exists():
                 print(f"Extension '{repo_name}' already exists. Skipping clone.")
                 continue
-
-            tasks.append(asyncio.create_subprocess_shell(
+            
+            # Correctly await the creation of the process
+            process = await asyncio.create_subprocess_shell(
                 f"git clone --depth 1 {command}",
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE
-            ))
+            )
+            tasks.append(process)
 
-        for i, process in enumerate(tasks):
-            _, stderr = await process.communicate()
-            if process.returncode != 0:
+        # Now tasks contains Process objects, so we can gather their results
+        results = await asyncio.gather(*[p.communicate() for p in tasks])
+
+        # Check results after they are all gathered
+        for i, (stdout, stderr) in enumerate(results):
+            if tasks[i].returncode != 0:
+                # Find the original command string for the failed process
+                # This is a bit tricky as we skipped some. A safer way is to build a parallel list of commands.
+                # For now, this will do, but it's not perfectly robust if some are skipped.
                 print(f"Error cloning extension. Git stderr: {stderr.decode() if stderr else 'No stderr'}", file=sys.stderr)
+
     finally:
         CD(original_cwd)
 
 def unpack_webui():
     zip_path = HOME / f"{UI}.zip"
     print(f"--- [{UI}.py] Step 1: Downloading WebUI from {REPO_URL} ---")
-    m_download(REPO_URL, str(HOME), f"{UI}.zip")
+    # Correctly format the line for m_download
+    m_download(f"{REPO_URL} {str(HOME)} {UI}.zip", log=True)
     
     print(f"--- [{UI}.py] Step 2: Unzipping {zip_path} to {WEBUI} ---")
     try:
