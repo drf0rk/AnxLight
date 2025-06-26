@@ -1,6 +1,6 @@
 # scripts/main_gradio_app.py
+# v1.2.1: Fix: Add 'scripts/data' to sys.path to resolve module import error.
 # v1.2.0: Critical Fix: Add missing .launch() call and keep-alive loop.
-# v1.1.1: Fix: Remove unused 'request' parameter from launch function.
 
 import gradio as gr
 import os
@@ -16,6 +16,10 @@ SCRIPT_DIR = Path(__file__).parent.resolve()
 PROJECT_ROOT = SCRIPT_DIR.parent.resolve()
 MODULES_PATH = PROJECT_ROOT / 'modules'
 SCRIPTS_PATH = PROJECT_ROOT / 'scripts'
+DATA_PATH = SCRIPTS_PATH / 'data' # Explicitly define data path
+
+# Add all necessary paths to sys.path
+sys.path.insert(0, str(DATA_PATH))
 sys.path.insert(0, str(SCRIPTS_PATH))
 if str(SCRIPT_DIR) not in sys.path: sys.path.insert(0, str(SCRIPT_DIR))
 if str(PROJECT_ROOT) not in sys.path: sys.path.insert(1, str(PROJECT_ROOT))
@@ -24,7 +28,7 @@ if str(MODULES_PATH) not in sys.path: sys.path.insert(0, str(MODULES_PATH))
 # --- Versioning ---
 try:
     from anxlight_version import ANXLIGHT_OVERALL_SYSTEM_VERSION, PRE_FLIGHT_SETUP_PY_VERSION
-    NEW_MAIN_GRADIO_APP_VERSION = "1.2.0"
+    NEW_MAIN_GRADIO_APP_VERSION = "1.2.1"
     APP_DISPLAY_VERSION = f"AnxLight Gradio App v{NEW_MAIN_GRADIO_APP_VERSION}"
     SYSTEM_DISPLAY_VERSION = f"AnxLight System v{ANXLIGHT_OVERALL_SYSTEM_VERSION}"
     print(f"--- {APP_DISPLAY_VERSION} (System: {SYSTEM_DISPLAY_VERSION}, Pre-Flight: v{PRE_FLIGHT_SETUP_PY_VERSION}) ---")
@@ -158,6 +162,6 @@ if __name__ == "__main__":
         debug=False
     )
     
-    # Keep the main thread alive so the script doesn't exit
+    # Keep the main thread alive
     while True:
         time.sleep(1)
