@@ -1,15 +1,14 @@
 # scripts/pre_flight_setup.py
+# v0.1.13: Explicitly pin Pydantic, FastAPI, and Starlette versions for compatibility. Add verification step.
 # v0.1.12: Add nest_asyncio to dependencies.
 # v0.1.11: Upgrade Gradio to 4.44.1. Let it manage Pydantic.
-# v0.1.10: Revert Pydantic pin, let Gradio use its default Pydantic.
 
 import os
 import sys
 import subprocess
 from pathlib import Path
-import time
 
-print("--- AnxLight Pre-Flight Setup Script v0.1.12 ---")
+print("--- AnxLight Pre-Flight Setup Script v0.1.13 ---")
 
 # --- Environment Setup ---
 PROJECT_ROOT = Path(os.environ.get('PROJECT_ROOT', '/content/AnxLight'))
@@ -54,21 +53,29 @@ except Exception as e:
 # --- Step 1: Create Virtual Environment ---
 if not VENV_PATH.exists():
     print(f"Creating virtual environment at {VENV_PATH} (without pip initially)...")
-    run_command(f"{sys.executable} -m venv --without-pip {VENV_PATH}")
+    run_command(f"\"{sys.executable}\" -m venv --without-pip {VENV_PATH}")
     print(f"Installing pip into {VENV_PATH}...")
-    run_command(f"curl -sS https://bootstrap.pypa.io/get-pip.py -o {PROJECT_ROOT / 'get-pip.py'}")
-    run_command(f"{VENV_PYTHON} {PROJECT_ROOT / 'get-pip.py'}")
+    run_command(f"curl -sS https://bootstrap.pypa.io/get-pip.py -o \"{PROJECT_ROOT / 'get-pip.py'}\"")
+    run_command(f"\"{VENV_PYTHON}\" \"{PROJECT_ROOT / 'get-pip.py'}\"")
     os.remove(PROJECT_ROOT / 'get-pip.py')
     print("Pip installed successfully in VENV.")
 else:
     print("Virtual environment already exists.")
     print(f"Upgrading pip in existing VENV at {VENV_PATH}...")
-    run_command(f"{VENV_PYTHON} -m pip install --upgrade pip")
+    run_command(f"\"{VENV_PYTHON}\" -m pip install --upgrade pip")
 
 # --- Step 2: Install Core Dependencies into VENV ---
-print("\\n--- Installing/Updating core dependencies in VENV (Gradio 4.44.1, added nest_asyncio) ---")
-core_deps = ["gradio==4.44.1", "huggingface-hub", "gdown", "nest_asyncio"]
-run_command(f"{VENV_PIP} install --upgrade {' '.join(core_deps)}")
+print("\\n--- Installing/Updating core dependencies with compatibility pins ---")
+core_deps = [
+    "gradio==4.44.1",
+    "pydantic>=2.9.0,<3.0.0",
+    "fastapi>=0.104.0",
+    "starlette>=0.27.0",
+    "huggingface-hub",
+    "gdown",
+    "nest_asyncio"
+]
+run_command(f"\"{VENV_PIP}\" install --upgrade {' '.join(core_deps)}")
 
 # --- Step 3: Install WebUIs ---
 print("\\n--- Running WebUI Installers ---")
@@ -80,12 +87,50 @@ for script in ui_scripts:
     env_vars = os.environ.copy()
     env_vars["VENV_PYTHON_PATH"] = str(VENV_PYTHON)
     env_vars["VENV_PIP_PATH"] = str(VENV_PIP)
-    result = run_command(f"{VENV_PYTHON} {script}", cwd=PROJECT_ROOT, check=False, env=env_vars)
+    result = run_command(f"\"{VENV_PYTHON}\" \"{script}\"", cwd=PROJECT_ROOT, check=False, env=env_vars)
     if result.returncode != 0:
         print(f"WARNING: Script {script.name} failed with return code {result.returncode}.", file=sys.stderr)
 
-# --- Step 4: Environment Health Check ---
-print("\\n--- Running Environment Health Check (pip check) ---")
-run_command(f"{VENV_PIP} check", check=False)
+# --- Step 4: Environment Compatibility Check ---
+print("\\n--- Verifying Environment Compatibility ---")
+check_script_content = \"\"\"
+import pkg_resources
+import sys
+
+required_versions = {
+    'gradio': '4.44.1',
+    'pydantic': '>=2.9.0',
+    'fastapi': '>=0.104.0',
+    'starlette': '>=0.27.0'
+}
+mismatches = 0
+print('--- Checking package versions ---')
+for package, version_req in required_versions.items():
+    try:
+        installed_version = pkg_resources.get_distribution(package).version
+        if not pkg_resources.parse_version(installed_version) in pkg_resources.Requirement.parse(f'{package}{version_req}'):
+            print(f'[MISMATCH] {package}: Found {installed_version}, requires {version_req}')
+            mismatches += 1
+        else:
+            print(f'[OK] {package}: Found {installed_version}, meets {version_req}')
+    except pkg_resources.DistributionNotFound:
+        print(f'[ERROR] {package}: NOT INSTALLED')
+        mismatches += 1
+
+if mismatches > 0:
+    print(f'Found {mismatches} package version mismatches. Errors may occur.')
+    # sys.exit(1) # Optionally exit if there's a mismatch
+else:
+    print('All checked packages meet version requirements.')
+
+print('\\n--- Running pip check for dependency conflicts ---')
+\"\"\"
+check_script_path = PROJECT_ROOT / "temp_check_script.py"
+check_script_path.write_text(check_script_content)
+run_command(f"\"{VENV_PYTHON}\" \"{check_script_path}\"")
+os.remove(check_script_path)
+
+# Final pip check for overall health
+run_command(f"\"{VENV_PIP}\" check", check=False)
 
 print("\\n--- Pre-Flight Setup Finished ---")
