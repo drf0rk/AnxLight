@@ -1,0 +1,399 @@
+# ~ launch.py | by ANXETY ~
+# Refactored by SuperAssistant to remove IPython dependencies and fix tunnel logic
+
+from TunnelHub import Tunnel    # Tunneling
+import json_utils as js         # JSON
+
+from datetime import timedelta
+from pathlib import Path
+import nest_asyncio
+import subprocess
+import requests
+import argparse
+import logging
+import asyncio
+import shlex
+import time
+import json
+import yaml
+import sys
+import os
+import re
+
+try:
+    from anxlight_version import LAUNCH_SCRIPT_VERSION
+except ImportError:
+    LAUNCH_SCRIPT_VERSION = "1.1.0" # Fallback
+
+print(f"--- AnxLight Launcher Backend v{LAUNCH_SCRIPT_VERSION} ---")
+
+osENV = os.environ
+CD = os.chdir
+
+# Constants (auto-convert env vars to Path)
+PATHS = {k: Path(v) for k, v in osENV.items() if k.endswith('_path')}   # k -> key; v -> value
+
+HOME = PATHS['home_path']
+VENV = PATHS['venv_path']
+SCR_PATH = PATHS['scr_path']
+SETTINGS_PATH = PATHS['settings_path']
+
+ENV_NAME = js.read(SETTINGS_PATH, 'ENVIRONMENT.env_name')
+UI = js.read(SETTINGS_PATH, 'WEBUI.current')
+WEBUI = js.read(SETTINGS_PATH, 'WEBUI.webui_path')
+
+
+nest_asyncio.apply()  # Async support for Jupyter
+
+
+BIN = str(VENV / 'bin')
+PKG = str(VENV / 'lib/python3.10/site-packages')
+
+if BIN not in osENV['PATH']:
+    osENV['PATH'] = BIN + ':' + osENV['PATH']
+if PKG not in osENV['PYTHONPATH']:
+    osENV['PYTHONPATH'] = PKG + ':' + osENV['PYTHONPATH']
+
+
+# Text Colors (\\033)
+class COLORS:
+    R  =  "\\033[31m"     # Red
+    G  =  "\\033[32m"     # Green
+    Y  =  "\\033[33m"     # Yellow
+    B  =  "\\033[34m"     # Blue
+    lB =  "\\033[36m"     # lightBlue
+    X  =  "\\033[0m"      # Reset
+
+COL = COLORS
+
+
+# =================== loading settings V5 ==================
+
+def load_settings(path):
+    """Load settings from a JSON file."""
+    try:
+        return {
+            **js.read(path, 'ENVIRONMENT'),
+            **js.read(path, 'WIDGETS'),
+            **js.read(path, 'WEBUI')
+        }
+    except (json.JSONDecodeError, IOError) as e:
+        print(f"Error loading settings: {e}")
+        return {}
+
+# Load settings
+settings = load_settings(SETTINGS_PATH)
+locals().update(settings)
+
+
+# ==================== Helper Functions ====================
+
+def parse_arguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-l', '--log', action='store_true', help='Show failed tunnel details')
+    return parser.parse_args()
+
+def _trashing():
+    dirs = ['A1111', 'ComfyUI', 'Forge', 'Classic', 'ReForge', 'SD-UX']
+    paths = [Path(HOME) / name for name in dirs]
+
+    for path in paths:
+        cmd = f"find {path} -type d -name .ipynb_checkpoints -exec rm -rf {{}} +"
+        subprocess.run(shlex.split(cmd), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+def _update_config_paths():
+    """Update configuration paths in WebUI config file"""
+    config_mapping = {
+        'tagger_hf_cache_dir': f"{WEBUI}/models/interrogators/",
+        'ad_extra_models_dir': adetailer_dir,
+        # 'sd_checkpoint_hash': '',
+        # 'sd_model_checkpoint': '',
+        'sd_vae': 'None'
+    }
+
+    config_file = f"{WEBUI}/config.json"
+    if not Path(config_file).exists():
+        print(f"Warning: {config_file} not found. Skipping config path updates.")
+        return
+
+    for key, value in config_mapping.items():
+        if js.key_exists(config_file, key):
+            js.update(config_file, key, str(value))
+        else:
+            js.save(config_file, key, str(value))
+
+def get_launch_command():
+    """Construct launch command based on configuration"""
+    base_args = commandline_arguments
+    password = 'emoy4cnkm6imbysp84zmfiz1opahooblh7j34sgh'
+
+    common_args = ' --enable-insecure-extension-access --disable-console-progressbars --theme dark'
+    if ENV_NAME == 'Kaggle':
+        common_args += f" --encrypt-pass={password}"
+
+    # Accent Color For Anxety-Theme
+    if theme_accent != 'anxety':
+        common_args += f" --anxety {theme_accent}"
+
+    if UI == 'ComfyUI':
+        return f"python3 main.py {base_args}"
+    else:
+        return f"python3 launch.py {base_args}{common_args}"
+
+
+# ======================== Tunneling =======================
+
+class TunnelManager:
+    """Class for managing tunnel services"""
+
+    def __init__(self, tunnel_port):
+        self.tunnel_port = tunnel_port
+        self.tunnels = []
+        self.error_reasons = []
+        self.public_ip = self._get_public_ip()
+        self.checking_queue = asyncio.Queue()
+        self.timeout = 20
+
+    def _get_public_ip(self) -> str:
+        """Retrieve and cache public IPv4 address"""
+        cached_ip = js.read(SETTINGS_PATH, 'ENVIRONMENT.public_ip')
+        if cached_ip:
+            return cached_ip
+
+        try:
+            response = requests.get('https://api64.ipify.org?format=json&ipv4=true', timeout=5)
+            public_ip = response.json().get('ip', 'N/A')
+            js.update(SETTINGS_PATH, 'ENVIRONMENT.public_ip', public_ip)
+            return public_ip
+        except Exception as e:
+            print(f"Error getting public IP address: {e}")
+            return 'N/A'
+
+    async def _print_status(self):
+        """Async status printer"""
+        print(f"{COL.Y}>> Tunnels:{COL.X}")
+        while True:
+            service_name = await self.checking_queue.get()
+            print(f"- 🕒 Checking {COL.lB}{service_name}{COL.X}...")
+            self.checking_queue.task_done()
+
+    async def _test_tunnel(self, name, config):
+        """Async tunnel testing"""
+        await self.checking_queue.put(name)
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *shlex.split(config['command']),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT
+            )
+
+            start_time = time.time()
+            output = []
+            pattern_found = False
+            check_interval = 0.5
+
+            while time.time() - start_time < self.timeout:
+                try:
+                    line = await asyncio.wait_for(
+                        process.stdout.readline(),
+                        timeout=check_interval
+                    )
+                    if not line:
+                        continue
+
+                    line = line.decode().strip()
+                    output.append(line)
+
+                    if config['pattern'].search(line):
+                        pattern_found = True
+                        break
+
+                except asyncio.TimeoutError:
+                    continue
+
+            if process.returncode is None:
+                try:
+                    process.terminate()
+                    await asyncio.wait_for(process.wait(), timeout=2)
+                except:
+                    pass
+
+            if pattern_found:
+                return True, None
+
+            error_msg = '\\n'.join(output[-3:]) or 'No output received'
+            return False, f"{error_msg[:300]}..."
+
+        except Exception as e:
+            return False, f"Process error: {str(e)}"
+
+    async def setup_tunnels(self):
+        """Async tunnel configuration"""
+        services = [
+            ('Gradio', {
+                'command': f"gradio-tun {self.tunnel_port}",
+                'pattern': re.compile(r'[\\w-]+\\.gradio\\.live')
+            }),
+            ('Serveo', {
+                'command': f"ssh -o StrictHostKeyChecking=no -R 80:localhost:{self.tunnel_port} serveo.net",
+                'pattern': re.compile(r'[\\w-]+\\.serveo\\.net')
+            }),
+            ('Pinggy', {
+                'command': f"ssh -o StrictHostKeyChecking=no -p 80 -R0:localhost:{self.tunnel_port} a.pinggy.io",
+                'pattern': re.compile(r'[\\w-]+\\.a\\.free\\.pinggy\\.link')
+            }),
+            ('Cloudflared', {
+                'command': f"cloudflared tunnel --url http://localhost:{self.tunnel_port}",
+                'pattern': re.compile(r'https://[\\w-]+\\.trycloudflare\\.com')
+            }),
+            ('Localtunnel', {
+                'command': f"lt --port {self.tunnel_port}",
+                'pattern': re.compile(r'[\\w-]+\\.loca\\.lt'),
+                'note': f"Password: {COL.G}{self.public_ip}{COL.X}"
+            })
+        ]
+
+        if zrok_token:
+            env_path = HOME / '.zrok/environment.json'
+            current_token = None
+
+            if env_path.exists():
+                with open(env_path, 'r') as f:
+                    current_token = json.load(f).get('zrok_token')
+
+            if current_token != zrok_token:
+                subprocess.run('zrok disable &> /dev/null', shell=True, check=False)
+                subprocess.run(f"zrok enable {zrok_token} &> /dev/null", shell=True, check=False)
+
+            services.append(('Zrok', {
+                'command': f"zrok share public http://localhost:{self.tunnel_port}/ --headless",
+                'pattern': re.compile(r'[\\w-]+\\.share\\.zrok\\.io')
+            }))
+
+        # Create status printer task
+        printer_task = asyncio.create_task(self._print_status())
+
+        # Run all tests concurrently
+        tasks = []
+        for name, config in services:
+            tasks.append(self._test_tunnel(name, config))
+
+        results = await asyncio.gather(*tasks)
+
+        # Cancel status printer
+        printer_task.cancel()
+        try:
+            await printer_task
+        except asyncio.CancelledError:
+            pass
+
+        # Process results
+        for (name, config), (success, error) in zip(services, results):
+            if success:
+                self.tunnels.append({**config, 'name': name})
+            else:
+                self.error_reasons.append({'name': name, 'reason': error})
+
+        return (
+            self.tunnels,
+            len(services),
+            len(self.tunnels),
+            len(self.error_reasons)
+        )
+
+
+# ========================== Main ==========================
+
+if __name__ == '__main__':
+    """Main execution flow"""
+    args = parse_arguments()
+    print('Please Wait...\\n')
+
+    osENV['PYTHONWARNINGS'] = 'ignore'
+
+    # Initialize tunnel manager and services
+    tunnel_port = 8188 if UI == 'ComfyUI' else 7860
+    tunnelingService = Tunnel(tunnel_port)
+    tunnelingService.logger.setLevel(logging.DEBUG)
+    
+    # NGROK is a special case. If token is provided, we use it exclusively.
+    if ngrok_token:
+        print("NGROK token provided. Prioritizing NGROK tunnel.")
+        config_path = HOME / '.config/ngrok/ngrok.yml'
+        current_token = None
+        if config_path.exists():
+            with open(config_path, 'r') as f:
+                current_token = yaml.safe_load(f).get('agent', {}).get('authtoken')
+        if current_token != ngrok_token:
+            subprocess.run(f"ngrok config add-authtoken {ngrok_token}", shell=True, check=False)
+        
+        tunnelingService.add_tunnel(
+            name='Ngrok',
+            command=f"ngrok http http://localhost:{tunnel_port} --log stdout",
+            pattern=re.compile(r'https://[\\w-]+\\.ngrok-free\\.app')
+        )
+        total, success, errors = 1, 1, 0
+    else:
+        # Fallback to testing all public tunnels if no NGROK token
+        print("No NGROK token. Testing public tunnels...")
+        tunnel_mgr = TunnelManager(tunnel_port)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        tunnels, total, success, errors = loop.run_until_complete(tunnel_mgr.setup_tunnels())
+        for tunnel in tunnels:
+            tunnelingService.add_tunnel(**tunnel)
+
+
+    # Launch sequence
+    _trashing()
+    _update_config_paths()
+    LAUNCHER = get_launch_command()
+
+    # Setup pinggy timer
+    subprocess.run(f"echo -n {int(time.time())+(3600+20)} > {WEBUI}/static/timer-pinggy.txt", shell=True, check=False)
+
+    with tunnelingService:
+        CD(WEBUI)
+
+        if UI == 'ComfyUI':
+            COMFYUI_SETTINGS_PATH = SCR_PATH / 'ComfyUI.json'
+            if check_custom_nodes_deps:
+                subprocess.run('python3 install-deps.py', shell=True, check=False)
+
+            if not js.key_exists(COMFYUI_SETTINGS_PATH, 'install_req', True):
+                print('Installing ComfyUI dependencies...')
+                subprocess.run(['pip', 'install', '-r', 'requirements.txt'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                js.save(COMFYUI_SETTINGS_PATH, 'install_req', True)
+
+        print(f"{COL.B}>> Total Tunnels:{COL.X} {total} | {COL.G}Success:{COL.X} {success} | {COL.R}Errors:{COL.X} {errors}\\n")
+
+        # Display error details if any
+        if args.log and errors > 0:
+            print(f"{COL.R}>> Failed Tunnels:{COL.X}")
+            # This part is now less relevant if we only use NGROK, but good for fallback
+            # for error in tunnel_mgr.error_reasons:
+            #     print(f"  - {error['name']}: {error['reason']}")
+            print()
+
+        print(f"🔧 WebUI: {COL.B}{UI}{COL.X}")
+
+        try:
+            subprocess.run(LAUNCHER, shell=True, check=True)
+        except KeyboardInterrupt:
+            pass
+        except subprocess.CalledProcessError as e:
+            print(f"Launch command failed: {e}")
+
+    # Post-execution cleanup
+    if zrok_token:
+        subprocess.run('zrok disable &> /dev/null', shell=True, check=False)
+        print('/n🔐 Zrok tunnel disabled :3')
+
+    # Display session duration
+    try:
+        with open(f"{WEBUI}/static/timer.txt") as f:
+            timer = float(f.read())
+            duration = timedelta(seconds=time.time() - timer)
+            print(f"\\n⌚️ Session duration: {COL.Y}{str(duration).split('.')[0]}{COL.X}")
+    except FileNotFoundError:
+        pass
