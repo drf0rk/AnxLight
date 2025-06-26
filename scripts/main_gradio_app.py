@@ -1,6 +1,6 @@
 # scripts/main_gradio_app.py
-# v1.1.1: Fix: Remove unused 'request' parameter from launch function to prevent Pydantic error.
-# v1.1.0: Restore full launch logic with compatibility fixes.
+# v1.2.0: Critical Fix: Add missing .launch() call and keep-alive loop.
+# v1.1.1: Fix: Remove unused 'request' parameter from launch function.
 
 import gradio as gr
 import os
@@ -24,7 +24,7 @@ if str(MODULES_PATH) not in sys.path: sys.path.insert(0, str(MODULES_PATH))
 # --- Versioning ---
 try:
     from anxlight_version import ANXLIGHT_OVERALL_SYSTEM_VERSION, PRE_FLIGHT_SETUP_PY_VERSION
-    NEW_MAIN_GRADIO_APP_VERSION = "1.1.1"
+    NEW_MAIN_GRADIO_APP_VERSION = "1.2.0"
     APP_DISPLAY_VERSION = f"AnxLight Gradio App v{NEW_MAIN_GRADIO_APP_VERSION}"
     SYSTEM_DISPLAY_VERSION = f"AnxLight System v{ANXLIGHT_OVERALL_SYSTEM_VERSION}"
     print(f"--- {APP_DISPLAY_VERSION} (System: {SYSTEM_DISPLAY_VERSION}, Pre-Flight: v{PRE_FLIGHT_SETUP_PY_VERSION}) ---")
@@ -69,13 +69,12 @@ def update_all_ui_elements(sd_version_selected, inpainting_filter_selected, webu
     is_comfy = (webui_selected == 'ComfyUI')
     return (gr.update(choices=models, value=[]), gr.update(choices=vaes, value=[]), gr.update(choices=controlnets, value=[]), gr.update(choices=loras, value=[]), gr.update(value=default_args), gr.update(visible=not is_comfy), gr.update(visible=is_comfy), gr.update(visible=not is_comfy, value=THEME_CHOICES[0]))
 
-# --- Core Application Logic (FIX APPLIED) ---
+# --- Core Application Logic ---
 def launch_anxlight_main_process(webui_choice, sd_version, models_selected, vaes_selected,
                                 controlnets_selected, loras_selected, update_webui,
                                 update_extensions, check_custom_nodes_deps, detailed_download,
                                 commit_hash, civitai_token, huggingface_token, zrok_token,
                                 ngrok_token, custom_args, theme_accent, inpainting_filter):
-    # The 'request' parameter has been removed from this function definition
     try:
         yield "--- Starting AnxLight Process ---\n"
         config_data = {'webui_choice': webui_choice, 'sd_version': sd_version, 'selected_assets': {'models': models_selected, 'vaes': vaes_selected, 'controlnets': controlnets_selected, 'loras': loras_selected}, 'tokens': {'civitai': civitai_token, 'huggingface': huggingface_token, 'zrok': zrok_token, 'ngrok': ngrok_token}, 'launch_args': custom_args, 'options': {'update_webui': update_webui, 'update_extensions': update_extensions, 'check_deps': check_custom_nodes_deps, 'detailed_log': detailed_download}}
@@ -150,14 +149,15 @@ def setup_gradio_interface():
 
 # --- Application Entry Point ---
 if __name__ == "__main__":
-    print("Setting up Gradio interface...")
     app_instance = setup_gradio_interface()
-    print("Launching Gradio App...")
-    try:
-        app_instance.launch(debug=False, share=True, show_error=True)
-        print("Gradio server launched. Keeping script alive...")
-        while True:
-            time.sleep(1)
-    except Exception as e:
-        print(f"FATAL LAUNCH ERROR: {e}")
-        print("Could not launch the Gradio server. Please check logs.")
+    print("Launching Gradio app...")
+    app_instance.launch(
+        server_name="0.0.0.0",
+        server_port=7860,
+        share=True,
+        debug=False
+    )
+    
+    # Keep the main thread alive so the script doesn't exit
+    while True:
+        time.sleep(1)
