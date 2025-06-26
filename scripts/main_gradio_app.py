@@ -1,6 +1,8 @@
 # scripts/main_gradio_app.py
+# v1.2.2: Add diagnostic prints to startup to locate import hang.
 # v1.2.1: Fix: Add 'scripts/data' to sys.path to resolve module import error.
-# v1.2.0: Critical Fix: Add missing .launch() call and keep-alive loop.
+
+print("[DIAGNOSTIC] main_gradio_app.py execution started.")
 
 import gradio as gr
 import os
@@ -10,6 +12,8 @@ import time
 import json
 from pathlib import Path
 import traceback
+
+print("[DIAGNOSTIC] Standard imports complete.")
 
 # --- Path and Module Setup ---
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -25,27 +29,37 @@ if str(SCRIPT_DIR) not in sys.path: sys.path.insert(0, str(SCRIPT_DIR))
 if str(PROJECT_ROOT) not in sys.path: sys.path.insert(1, str(PROJECT_ROOT))
 if str(MODULES_PATH) not in sys.path: sys.path.insert(0, str(MODULES_PATH))
 
+print("[DIAGNOSTIC] System path configured.")
+
 # --- Versioning ---
+print("[DIAGNOSTIC] Importing version...")
 try:
     from anxlight_version import ANXLIGHT_OVERALL_SYSTEM_VERSION, PRE_FLIGHT_SETUP_PY_VERSION
-    NEW_MAIN_GRADIO_APP_VERSION = "1.2.1"
+    NEW_MAIN_GRADIO_APP_VERSION = "1.2.2"
     APP_DISPLAY_VERSION = f"AnxLight Gradio App v{NEW_MAIN_GRADIO_APP_VERSION}"
     SYSTEM_DISPLAY_VERSION = f"AnxLight System v{ANXLIGHT_OVERALL_SYSTEM_VERSION}"
     print(f"--- {APP_DISPLAY_VERSION} (System: {SYSTEM_DISPLAY_VERSION}, Pre-Flight: v{PRE_FLIGHT_SETUP_PY_VERSION}) ---")
 except ImportError as e_ver:
     print(f"[CRITICAL] Failed to import versions: {e_ver}")
     APP_DISPLAY_VERSION = "AnxLight Gradio App v?.?.? (Version File Error)"
+print("[DIAGNOSTIC] Version import complete.")
 
 # --- Module Imports ---
+print("[DIAGNOSTIC] Importing data and utility modules...")
 try:
     from sd15_data import sd15_model_data, sd15_vae_data, sd15_controlnet_data, sd15_lora_data
+    print("[DIAGNOSTIC] Imported sd15_data.")
     from sdxl_data import sdxl_model_data, sdxl_vae_data, sdxl_controlnet_data, sdxl_lora_data
+    print("[DIAGNOSTIC] Imported sdxl_data.")
     import json_utils
+    print("[DIAGNOSTIC] Imported json_utils.")
     import Manager as manager_utils
+    print("[DIAGNOSTIC] Imported Manager.")
     print("Successfully imported real data and utility modules.")
 except ImportError as e:
     print(f"FATAL: Error importing backend modules: {e}. Check PYTHONPATH and file integrity.")
     sys.exit(1)
+print("[DIAGNOSTIC] All module imports complete.")
 
 # --- Constants ---
 WEBUI_CHOICES = ["A1111", "ComfyUI", "Forge"]
@@ -57,6 +71,7 @@ WEBUI_DEFAULT_ARGS = {
     'ComfyUI': "--preview-method auto",
     'Forge': "--xformers --cuda-stream --pin-shared-memory"
 }
+print("[DIAGNOSTIC] Constants defined.")
 
 # --- UI Logic Functions ---
 def get_asset_choices(sd_version, inpainting_filter_mode="Show All Models"):
@@ -72,6 +87,8 @@ def update_all_ui_elements(sd_version_selected, inpainting_filter_selected, webu
     default_args = WEBUI_DEFAULT_ARGS.get(webui_selected, "")
     is_comfy = (webui_selected == 'ComfyUI')
     return (gr.update(choices=models, value=[]), gr.update(choices=vaes, value=[]), gr.update(choices=controlnets, value=[]), gr.update(choices=loras, value=[]), gr.update(value=default_args), gr.update(visible=not is_comfy), gr.update(visible=is_comfy), gr.update(visible=not is_comfy, value=THEME_CHOICES[0]))
+
+print("[DIAGNOSTIC] UI logic functions defined.")
 
 # --- Core Application Logic ---
 def launch_anxlight_main_process(webui_choice, sd_version, models_selected, vaes_selected,
@@ -110,8 +127,11 @@ def launch_anxlight_main_process(webui_choice, sd_version, models_selected, vaes
         yield f"Error: {str(e)}\n"
         yield f"Traceback:\n{traceback.format_exc()}\n"
 
+print("[DIAGNOSTIC] Core application logic defined.")
+
 # --- Gradio UI Construction ---
 def setup_gradio_interface():
+    print("[DIAGNOSTIC] Setting up Gradio interface...")
     _initial_models, _initial_vaes, _initial_cn, _initial_loras = get_asset_choices(SD_VERSION_CHOICES[0])
     with gr.Blocks() as demo:
         gr.Markdown(f"# {APP_DISPLAY_VERSION}")
@@ -149,12 +169,15 @@ def setup_gradio_interface():
         inpainting_filter_rg.change(fn=update_all_ui_elements, inputs=inputs, outputs=outputs)
         webui_choice_dd.change(fn=update_all_ui_elements, inputs=inputs, outputs=outputs)
         launch_button.click(fn=launch_anxlight_main_process, inputs=[webui_choice_dd, sd_version_rb, models_cbg, vaes_cbg, controlnets_cbg, loras_cbg, update_webui_chk, update_extensions_chk, check_custom_nodes_deps_chk, detailed_download_chk, commit_hash_tb, civitai_token_tb, huggingface_token_tb, zrok_token_tb, ngrok_token_tb, custom_args_tb, theme_accent_dd, inpainting_filter_rg], outputs=live_log_ta)
+    print("[DIAGNOSTIC] Gradio interface setup complete.")
     return demo
 
 # --- Application Entry Point ---
 if __name__ == "__main__":
+    print("[DIAGNOSTIC] Application entry point (__main__) reached.")
     app_instance = setup_gradio_interface()
-    print("Launching Gradio app...")
+    
+    print("[DIAGNOSTIC] Launching Gradio app...")
     app_instance.launch(
         server_name="0.0.0.0",
         server_port=7860,
@@ -162,6 +185,7 @@ if __name__ == "__main__":
         debug=False
     )
     
-    # Keep the main thread alive
+    # Keep the main thread alive so the script doesn't exit
+    print("[DIAGNOSTIC] Gradio launch called. Entering keep-alive loop.")
     while True:
         time.sleep(1)
