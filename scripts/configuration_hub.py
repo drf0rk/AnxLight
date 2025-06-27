@@ -62,7 +62,7 @@ WEBUI_DEFAULT_ARGS = {
     "SD-UX": "--xformers --no-half-vae --medvram --theme dark"
 }
 
-def log_to_unified(message: str, level: str = "INFO"):
+def log_to_unified(message: str, level: str = "INFO", force_display: bool = False):
     """Unified logging with Trinity integration"""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = f"[{timestamp}] [v{TRINITY_VERSION}] [{level}] [CONFIG-HUB] {message}\n"
@@ -70,8 +70,8 @@ def log_to_unified(message: str, level: str = "INFO"):
     with open(LOG_FILE, 'a', encoding='utf-8') as f:
         f.write(log_entry)
     
-    # Print based on level
-    if level in ["ERROR", "SUCCESS", "WARNING"]:
+    # Print based on level or force_display
+    if force_display or level in ["ERROR", "SUCCESS", "WARNING"]:
         print(f"[{level}] {message}")
     else:
         print(f"[INFO] {message}")
