@@ -13,8 +13,14 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional, Any, Union
 
-# Add project root to path
-PROJECT_ROOT = Path(__file__).parent.parent
+# Get project root - handle both direct execution and exec()
+try:
+    # When run as a script
+    PROJECT_ROOT = Path(__file__).parent.parent
+except NameError:
+    # When run via exec()
+    PROJECT_ROOT = Path(os.environ.get('PROJECT_ROOT', '/content/AnxLight'))
+
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # Import project modules
