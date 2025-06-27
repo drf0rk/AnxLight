@@ -318,3 +318,9 @@ def create_trinity_configuration_hub():
                     type="password",
                     interactive=True
                 )
+    # Launch the interface
+    app.launch(share=True)
+    return app
+
+if __name__ == "__main__":
+    create_trinity_configuration_hub()
