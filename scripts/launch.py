@@ -1,7 +1,7 @@
 # ~ launch.py | by ANXETY ~
 # Refactored by SuperAssistant to remove IPython dependencies and fix tunnel logic
 
-from TunnelHub import Tunnel    # Tunneling
+from modules.TunnelHub import Tunnel    # Tunneling
 import json_utils as js         # JSON
 
 from datetime import timedelta
