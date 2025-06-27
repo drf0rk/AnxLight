@@ -308,7 +308,7 @@ def m_clone(input_source, recursive=True, depth=1, log=False):
 def download_selected_assets(config_data):
     """Download assets based on user selections from Gradio config"""
     try:
-        yield "🔍 Analyzing selected assets...\n"
+        yield "🔍 Analyzing selected assets..."
         
         # Extract selections from config
         webui_choice = config_data.get('webui_choice', 'A1111')
@@ -325,18 +325,30 @@ def download_selected_assets(config_data):
         total_selected = len(selected_models) + len(selected_vaes) + len(selected_controlnets) + len(selected_loras)
         
         if total_selected == 0:
-            yield "ℹ️ No assets selected for download\n"
+            yield "ℹ️ No assets selected for download"
             return
         
-        yield f"📦 Found {total_selected} assets to process:\n"
+        yield f"📦 Found {total_selected} assets to process:"
         if selected_models:
-            yield f"  • {len(selected_models)} Models: {', '.join(selected_models[:3])}{'...' if len(selected_models) > 3 else ''}\n"
+            models_preview = ', '.join(selected_models[:3])
+            if len(selected_models) > 3:
+                models_preview += '...'
+            yield f"  • {len(selected_models)} Models: {models_preview}"
         if selected_vaes:
-            yield f"  • {len(selected_vaes)} VAEs: {', '.join(selected_vaes[:3])}{'...' if len(selected_vaes) > 3 else ''}\n"
+            vaes_preview = ', '.join(selected_vaes[:3])
+            if len(selected_vaes) > 3:
+                vaes_preview += '...'
+            yield f"  • {len(selected_vaes)} VAEs: {vaes_preview}"
         if selected_controlnets:
-            yield f"  • {len(selected_controlnets)} ControlNets: {', '.join(selected_controlnets[:3])}{'...' if len(selected_controlnets) > 3 else ''}\n"
+            cnets_preview = ', '.join(selected_controlnets[:3])
+            if len(selected_controlnets) > 3:
+                cnets_preview += '...'
+            yield f"  • {len(selected_controlnets)} ControlNets: {cnets_preview}"
         if selected_loras:
-            yield f"  • {len(selected_loras)} LoRAs: {', '.join(selected_loras[:3])}{'...' if len(selected_loras) > 3 else ''}\n"
+            loras_preview = ', '.join(selected_loras[:3])
+            if len(selected_loras) > 3:
+                loras_preview += '...'
+            yield f"  • {len(selected_loras)} LoRAs: {loras_preview}"
         
         # Import data modules
         try:
@@ -357,9 +369,9 @@ def download_selected_assets(config_data):
                     'loras': (selected_loras, sdxl_lora_data)
                 }
         except ImportError as e:
-            yield f"❌ Error importing asset data: {e}\n"
-            yield "⚠️ Asset downloading disabled due to missing data files\n"
-            yield "🚀 Proceeding to WebUI launch...\n"
+            yield f"❌ Error importing asset data: {e}"
+            yield "⚠️ Asset downloading disabled due to missing data files"
+            yield "🚀 Proceeding to WebUI launch..."
             return
         
         # Get WebUI paths
@@ -367,7 +379,7 @@ def download_selected_assets(config_data):
             import modules.webui_utils as webui_utils
             webui_utils.update_current_webui(webui_choice)
         except ImportError:
-            yield "⚠️ webui_utils not available, using default paths\n"
+            yield "⚠️ webui_utils not available, using default paths"
         
         completed = 0
         successful = 0
@@ -377,13 +389,14 @@ def download_selected_assets(config_data):
             if not selected_items:
                 continue
                 
-            yield f"\n📥 Processing {asset_type}...\n"
+            yield ""
+            yield f"📥 Processing {asset_type}..."
             
             for item_name in selected_items:
                 completed += 1
                 
                 if item_name not in data_dict:
-                    yield f"⚠️ {item_name} not found in {asset_type} catalog\n"
+                    yield f"⚠️ {item_name} not found in {asset_type} catalog"
                     continue
                 
                 try:
@@ -392,7 +405,7 @@ def download_selected_assets(config_data):
                     filename = asset_info.get('filename', item_name)
                     
                     if not download_url:
-                        yield f"⚠️ No download URL for {item_name}\n"
+                        yield f"⚠️ No download URL for {item_name}"
                         continue
                     
                     # Determine target directory based on WebUI and asset type
@@ -421,13 +434,17 @@ def download_selected_assets(config_data):
                     if target_path.exists():
                         file_size = target_path.stat().st_size
                         if file_size > 1024:  # More than 1KB, probably valid
-                            yield f"✓ {item_name} already exists ({file_size // (1024*1024)}MB), skipping\n"
+                            size_mb = file_size // (1024*1024)
+                            yield f"✓ {item_name} already exists ({size_mb}MB), skipping"
                             successful += 1
                             continue
                     
-                    yield f"📥 Downloading {item_name} ({completed}/{total_selected})...\n"
-                    yield f"   URL: {download_url[:60]}{'...' if len(download_url) > 60 else ''}\n"
-                    yield f"   To: {target_path}\n"
+                    yield f"📥 Downloading {item_name} ({completed}/{total_selected})..."
+                    url_preview = download_url[:60]
+                    if len(download_url) > 60:
+                        url_preview += '...'
+                    yield f"   URL: {url_preview}"
+                    yield f"   To: {target_path}"
                     
                     # Download the file
                     download_success = download_url_to_path(
@@ -441,32 +458,34 @@ def download_selected_assets(config_data):
                     if download_success:
                         if target_path.exists():
                             file_size = target_path.stat().st_size
-                            yield f"✅ Downloaded {item_name} ({file_size // (1024*1024)}MB)\n"
+                            size_mb = file_size // (1024*1024)
+                            yield f"✅ Downloaded {item_name} ({size_mb}MB)"
                             successful += 1
                         else:
-                            yield f"❌ Download reported success but file not found: {item_name}\n"
+                            yield f"❌ Download reported success but file not found: {item_name}"
                     else:
-                        yield f"❌ Failed to download {item_name}\n"
+                        yield f"❌ Failed to download {item_name}"
                     
                 except Exception as e:
-                    yield f"❌ Error downloading {item_name}: {str(e)}\n"
+                    yield f"❌ Error downloading {item_name}: {str(e)}"
         
         # Summary
-        yield f"\n📊 Download Summary:\n"
-        yield f"   Total Selected: {total_selected}\n"
-        yield f"   Successfully Downloaded: {successful}\n"
-        yield f"   Failed/Skipped: {total_selected - successful}\n"
+        yield ""
+        yield "📊 Download Summary:"
+        yield f"   Total Selected: {total_selected}"
+        yield f"   Successfully Downloaded: {successful}"
+        yield f"   Failed/Skipped: {total_selected - successful}"
         
         if successful == total_selected:
-            yield "🎉 All assets downloaded successfully!\n"
+            yield "🎉 All assets downloaded successfully!"
         elif successful > 0:
-            yield "⚠️ Some assets downloaded successfully, check failures above\n"
+            yield "⚠️ Some assets downloaded successfully, check failures above"
         else:
-            yield "❌ No assets were downloaded successfully\n"
+            yield "❌ No assets were downloaded successfully"
         
-        yield "✅ Asset download process complete\n"
+        yield "✅ Asset download process complete"
         
     except Exception as e:
-        yield f"❌ Fatal error in download_selected_assets: {str(e)}\n"
+        yield f"❌ Fatal error in download_selected_assets: {str(e)}"
         import traceback
-        yield f"Traceback: {traceback.format_exc()}\n"
+        yield f"Traceback: {traceback.format_exc()}"
