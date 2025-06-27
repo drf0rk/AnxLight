@@ -49,7 +49,7 @@ CONFIG_PATH = PROJECT_ROOT / "trinity_config.json"
 LOG_FILE = PROJECT_ROOT / "trinity_unified.log"
 EXECUTION_LOG = PROJECT_ROOT / "trinity_execution.log"
 
-def log_to_unified(message: str, level: str = "INFO"):
+def log_to_unified(message: str, level: str = "INFO", force_display: bool = False):
     """Unified logging with Trinity integration"""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = f"[{timestamp}] [v{TRINITY_VERSION}] [{level}] [EXECUTION] {message}\n"
@@ -61,8 +61,8 @@ def log_to_unified(message: str, level: str = "INFO"):
     with open(EXECUTION_LOG, 'a', encoding='utf-8') as f:
         f.write(log_entry)
     
-    # Print based on level
-    if level in ["ERROR", "SUCCESS", "WARNING"]:
+    # Print based on level or force_display
+    if force_display or level in ["ERROR", "SUCCESS", "WARNING"]:
         print(f"[{level}] {message}")
     else:
         print(f"[INFO] {message}")
