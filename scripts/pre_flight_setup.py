@@ -10,7 +10,14 @@ from pathlib import Path
 print("--- AnxLight Pre-Flight Setup Script v0.1.15 ---")
 
 # --- Environment Setup ---
-PROJECT_ROOT = Path(os.environ.get('PROJECT_ROOT', '/content/AnxLight'))
+# Get project root - handle both direct execution and exec()
+try:
+    # When run as a script
+    PROJECT_ROOT = Path(__file__).parent.parent
+except NameError:
+    # When run via exec()
+    PROJECT_ROOT = Path(os.environ.get('PROJECT_ROOT', '/content/AnxLight'))
+
 VENV_NAME = "anxlight_venv"
 VENV_PATH = PROJECT_ROOT / VENV_NAME
 VENV_PYTHON = VENV_PATH / "bin" / "python"
