@@ -28,9 +28,9 @@ try:
     from sd15_data import sd15_model_data, sd15_vae_data, sd15_controlnet_data, sd15_lora_data
     from sdxl_data import sdxl_model_data, sdxl_vae_data, sdxl_controlnet_data, sdxl_lora_data
     from lora_data import lora_data
-    log_message("Trinity data modules imported successfully", log=True)
+    print("Trinity data modules imported successfully")
 except ImportError as e:
-    log_message(f"Warning: Could not import Trinity data modules: {e}", log=True)
+    print(f"Warning: Could not import Trinity data modules: {e}")
     # Provide fallback empty dicts
     sd15_model_data = sd15_vae_data = sd15_controlnet_data = sd15_lora_data = {}
     sdxl_model_data = sdxl_vae_data = sdxl_controlnet_data = sdxl_lora_data = {}
