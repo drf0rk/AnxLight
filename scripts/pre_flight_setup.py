@@ -38,6 +38,24 @@ def run_command(command, cwd=None, check=True, capture_output=False, shell=True,
         raise subprocess.CalledProcessError(process.returncode, command)
     return process
 
+def log_to_unified(message: str, level: str = "INFO", test_name: str = None, force_display: bool = False):
+    """Unified logging with Trinity integration"""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_entry = f"[{timestamp}] [v{TRINITY_VERSION}] [{level}] [PRE-FLIGHT] {message}\n"
+    
+    with open(LOG_FILE, 'a', encoding='utf-8') as f:
+        f.write(log_entry)
+    
+    # Print based on level or force_display
+    if force_display or level in ["ERROR", "SUCCESS", "WARNING"]:
+        print(f"[{level}] {message}")
+    else:
+        print(f"[{level}] {message}")
+    
+    # Update test UI if test name provided
+    if test_name:
+        update_test_ui(test_name, level.lower(), message)
+
 # --- Step 0: Install essential system packages (like aria2) ---
 print("\n--- Ensuring essential system packages are installed (e.g., aria2) ---")
 try:
